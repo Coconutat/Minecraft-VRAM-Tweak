@@ -6,7 +6,6 @@
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ---
 ***
