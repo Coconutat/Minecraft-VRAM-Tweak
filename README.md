@@ -35,6 +35,8 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin
 | **VRAM Governor** | Dynamically lowers render distance under VRAM pressure, restores when safe | ✅ Experimental |
 | **Budget Tracking** | Per-frame VRAM polling + configurable warning threshold | ✅ Stable |
 
+> ⚠️ **Important**: Toggling the mod ON/OFF via GUI takes effect immediately for *new* textures only. Textures already loaded into VRAM stay at their current size until you **restart the game**. If you disable the mod and VRAM usage doesn't increase, this is expected — restart to reload textures at full resolution.
+
 ---
 
 ## HUD Overlay
