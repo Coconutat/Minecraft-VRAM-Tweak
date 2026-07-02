@@ -52,11 +52,12 @@ public class VRAMOptimizer {
         budgetTracking = cfg.budgetTracking;
         budgetPercent = cfg.budgetWarningPercent;
 
+        LOGGER.info("[TRACE] VRAMOptimizer.reload() called. Thread={}", Thread.currentThread().getName());
         if (enabled) {
             LOGGER.info("VRAM optimizer ON. shadowCap={}, formatDownscale={}, depthDownscale={}, budget={}%",
                     maxShadowSize, formatDownscale, depthDownscale, budgetPercent);
         } else {
-            LOGGER.info("VRAM optimizer OFF.");
+            LOGGER.info("VRAM optimizer OFF. Existing textures unchanged until game restart.");
         }
     }
 

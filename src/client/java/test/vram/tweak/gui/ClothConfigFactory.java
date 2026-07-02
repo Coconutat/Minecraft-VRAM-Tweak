@@ -38,7 +38,7 @@ public class ClothConfigFactory {
                         cfg.vram.enabled)
                 .setDefaultValue(false)
                 .setTooltip(Component.translatable("vramtweak.gui.option.vram.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.vram.enabled = v)
+                .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
                 .build());
 
         vram.addEntry(eb.startIntSlider(
