@@ -23,6 +23,7 @@ public class ClothConfigFactory {
                 .setTitle(Component.translatable("vramtweak.gui.title"))
                 .setSavingRunnable(() -> {
                     VRAMConfig.save();
+                    VRAMOptimizer.reload();
                     VRAMGovernor.reload();
                 });
 
