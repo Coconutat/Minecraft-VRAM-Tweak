@@ -1,0 +1,19 @@
+{
+	"required": true,
+	"package": "test.vram.tweak.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"accessor.SpriteContentsAccessor",
+		"MixinMinecraftClient_Init",
+		"MixinGpuDevice_VRAMOptimize",
+		"MixinGameRenderer_Metrics",
+		"MixinOptions_RenderDistance",
+		"MixinSpriteContents_AnimationLimit",
+		"MixinParticleEngine_Cap",
+		"MixinGui_Hud",
+		"MixinMinecraft_Hud"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

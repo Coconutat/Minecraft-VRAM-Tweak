@@ -1,0 +1,208 @@
+# Minecraft VRAM Tweak
+
+[**English**](README.md) | **中文**
+
+> Minecraft 26.2 Fabric 显存优化模组 — 在不修改着色器或资源包的前提下降低 GPU 显存占用。
+
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
+[![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+
+---
+***
+## 开发自述
+我一开始想为我低端的AMD GPU做优化mod，因为我发现其帧数不稳定。我对此无能为力，正好借助现在AI，我可以按照想法做出来mod。  
+然而随着开发，我发现其实时VRAM瓶颈。于是我改变方向，制作了这个为低VRAM优化的mod。  
+这个mod理论上是通用的。
+***
+## 功能概述
+
+VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。它截断超大纹理图集、降低深度缓冲精度、限制动画帧数，并在显存紧张时动态调整渲染距离 —— **全程不修改 Sodium、Iris 或任何第三方模组代码**。
+
+| 功能 | 原理 | 实测触发情况 |
+|------|------|-------------|
+| **纹理图集上限** | 限制 `GpuDevice.createTexture()` 宽高 ≤ `maxAtlasSize` | ✅ 单会话 12 次（blocks.png 16384→4096 px） |
+| **深度缓冲降精度** | D32_FLOAT → D16_UNORM 阴影贴图 | ✅ 单会话 10 次 |
+| **颜色缓冲降精度** | RGBA16F → RGBA8（适配重型光影包） | ⚠️ 当前测试环境未触发，等未来触发，也许有一天我们需要它 |
+| **阴影贴图上限** | 限制阴影贴图分辨率 ≤ `shadowMapMaxSize` | ⚠️ 原版 ≤1024，已在限制内 |
+| **动画帧数限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
+| **粒子数量上限** | 全局粒子计数安全网 | ✅ 实验性 |
+| **VRAM 调速器** | 显存紧张时自动降低渲染距离，恢复后逐步还原 | ✅ 实验性 |
+| **预算追踪** | 每帧轮询 VRAM 用量 + 可配置告警阈值 | ✅ 稳定 |
+
+---
+
+## HUD 叠加层
+
+实时性能数据叠加显示，**每个指标独立开关**：
+
+| 开关 | 显示内容 |
+|------|---------|
+| FPS (平滑) | 0.5s 滚动窗口帧率 |
+| FPS (平均) | 5s 滑动窗口均值 |
+| 1% Low FPS | 最慢 1% 帧的 FPS——体感流畅度核心指标 |
+| 0.1% Low FPS | 最慢 0.1% 帧——严重卡顿检测 |
+| 帧时间 | 平均每帧毫秒数 |
+| VRAM | 已用/总量 + 百分比（颜色编码） |
+| Atlas 统计 | 纹理图集追踪数 vs 被截断次数 |
+| 纹理分配 | GPU 纹理创建/释放计数 |
+| 降精度计数 | 深度/格式降精度触发次数 |
+| Budget 状态 | 告警状态 + 峰值使用率 |
+
+通过 Cloth Config GUI 或 `config/vram-tweak.json` 配置。
+
+---
+
+## 命令
+
+```
+/vramtweak stats      — 在聊天栏输出当前 VRAM + FPS 统计
+/vramtweak dump       — 写入完整诊断报告到磁盘
+/vramtweak hud        — 开关 HUD 叠加层
+/vramtweak benchmark  — 快速 VRAM 压力测试
+```
+
+---
+
+## 实测效果 *(AMD R5 5600 + 32GB DDR4 3200 CL16 + AMD RX 6650 XT 8GB, MC 26.2 + Sodium + Iris + 其它mods)*
+
+### 测试材质包和光影
+材质包:[EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) 非免费材质包，但是有试用版  
+光影:[春v2](https://modrinth.com/shader/spring-shaders) 作者已经公开发布
+***
+### 开启前
+| 指标 | 数值 |
+|------|------|
+| VRAM 峰值 | 7820 / 8192 MB (95.4%) |
+***
+### 开启后
+| 指标 | 数值 |
+|------|------|
+| VRAM 峰值 | 4728 / 8192 MB (57.7%) |
+| Atlas 截断触发 | 单会话 12 次 |
+| 深度降精度触发 | 单会话 10 次 |
+| 最大图集缩减 | 16384 → 4096 px (blocks.png) |
+| 预算告警 | 0 次（从未超过 80%） |
+
+---
+
+## 依赖要求
+
+| 依赖 | 类型 | 版本 |
+|------|------|------|
+| **Sodium** | 硬依赖 | 0.9.0+ |
+| Iris | 软依赖 | 1.11+ *（光影兼容）* |
+| Cloth Config | 软依赖 | 26.2+ *（GUI）* |
+
+---
+
+## GPU 支持
+
+| GPU 厂商 | 自动检测 | VRAM 追踪 |
+|---------|---------|----------|
+| AMD | ✅ `GL_VENDOR` 自动启用 | ✅ `GL_ATI_meminfo`（KB 级精度） |
+| NVIDIA | 手动设置 `vram.enabled=true` | ❌ 无等效 GL 扩展 |
+| Intel | 手动设置 `vram.enabled=true` | ❌ 无等效 GL 扩展 |
+
+---
+
+## 快速开始
+
+1. 安装 Minecraft 26.2 的 [Fabric](https://fabricmc.net/use/)
+2. 安装 [Sodium](https://modrinth.com/mod/sodium)
+3. 将 `vram-tweak-1.0.0.jar` 放入 `mods/` 文件夹
+4. 启动游戏 — AMD 显卡自动启用。其他显卡：在配置中设置 `vram.enabled: true`
+
+---
+
+## 配置文件
+
+所有设置位于 `config/vram-tweak.json`。使用 Cloth Config GUI（Mod Menu → VRAM Tweak）进行交互式配置。
+
+```jsonc
+{
+  "vram": {
+    "enabled": true,           // VRAM 总开关
+    "shadowMapMaxSize": 1024,  // 阴影贴图分辨率上限
+    "formatDownscale": false,  // RGBA16F→RGBA8
+    "depthDownscale": false,   // D32→D16
+    "budgetTracking": false,   // VRAM 用量监控
+    "budgetWarningPercent": 80 // 超过此百分比告警
+  },
+  "texture": {
+    "animationLimit": false,
+    "maxAnimationFrames": 32,
+    "atlasSizeLimit": false,   // 纹理图集尺寸上限
+    "maxAtlasSize": 4096
+  },
+  "governor": {
+    "enabled": false,          // 动态渲染距离
+    "hysteresis": 10,          // 回差百分比
+    "minDistance": 4,          // 最低渲染距离
+    "cooldownTicks": 100       // 冷却时间
+  },
+  "particle": {
+    "enabled": false,
+    "maxParticles": 2000
+  },
+  "hud": {
+    "enabled": true,
+    "showFps": true,
+    "showFpsAvg": true,
+    "showFps1Percent": false,
+    "showFps01Percent": false,
+    "showFrameTime": true,
+    "showVram": true
+    // ... 更多独立开关
+  }
+}
+```
+
+---
+
+## 构建
+
+```bash
+git clone <repo-url>
+cd Minecraft-AMD-GPU-Tweak
+./gradlew build
+# 输出: build/libs/vram-tweak-1.0.0.jar
+```
+
+需要 JDK 25+ 和 Gradle 9.6+。
+
+---
+
+## 架构
+
+```
+Mixin 注入层
+├── MixinGpuDevice_VRAMOptimize   → createTexture() 格式/尺寸拦截
+├── MixinGameRenderer_Metrics      → 逐帧统计 + VRAM 轮询
+├── MixinSpriteContents_Animation  → 动画帧截断
+├── MixinParticleEngine_Cap        → 全局粒子限制
+├── MixinOptions_RenderDistance    → VRAM 调速器钩子
+├── MixinGui_Hud                   → HUD 叠加层渲染
+└── MixinMinecraft_Hud             → HUD 数据采集
+
+核心模块 (src/main)
+├── VRAMOptimizer          → 格式/尺寸策略引擎
+├── VRAMGovernor           → 动态渲染距离控制器
+├── MetricsEngine          → 环形缓冲区性能采样
+├── VramFrameCounter       → 滑动窗口 FPS + 百分位低帧率
+├── VerificationLogger     → 优化前后审计追踪
+├── GPUDetector            → 厂商检测 + VRAM 查询
+└── VRAMConfig             → 基于 Gson 的 6 段式配置
+
+客户端模块 (src/client)
+├── VramTweakHud           → 单例叠加层渲染器
+├── VramTweakCommand       → /vramtweak CLI
+├── ClothConfigFactory     → GUI 集成
+└── ModMenuIntegration     → Mod Menu 入口
+```
+
+---
+
+## 许可证
+
+Creative Commons Legal Code — 详见 [LICENSE](LICENSE)。

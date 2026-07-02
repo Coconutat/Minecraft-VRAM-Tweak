@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "vram-tweak",
+	"version": "${version}",
+	"name": "VRAM Tweak",
+	"description": "VRAM optimization for low VRAM GPUs — shadow map cap, format downscale, budget tracking. Compatible with Iris & Sodium. Without Deepseek, this mod would not exist.",
+	"authors": ["Coconutat", "Deepseek V4"],
+	"license": "CC0 1.0 Universal",
+	"environment": "client",
+	"entrypoints": {
+		"main": ["test.vram.tweak.VRAMTweak"],
+		"client": ["test.vram.tweak.client.VRAMTweakClient"],
+		"modmenu": ["test.vram.tweak.gui.ModMenuIntegration"]
+	},
+	"mixins": [
+		{
+			"config": "vram-tweak.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"suggests": {
+		"sodium": "*",
+		"iris": "*",
+		"cloth-config": "*",
+		"modmenu": "*"
+	},
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
