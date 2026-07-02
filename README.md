@@ -16,7 +16,9 @@ I originally wanted to make an optimization mod for my low-end AMD GPU because I
 
 However, as development progressed, I discovered that VRAM was actually the bottleneck. So I changed direction and created this mod optimized for low VRAM environments.
 
-This mod is theoretically universal across GPU vendors.
+This mod is theoretically universal across GPU vendors.  
+
+For users with GPUs that have 4GB or 6GB of video memory, this can reduce stuttering caused by insufficient video memory.  
 ***
 
 ## What It Does
