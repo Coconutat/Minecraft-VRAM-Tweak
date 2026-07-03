@@ -93,7 +93,7 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 | `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
 | `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
 
-> **Total:** Atlas caps + 10 depth downscales → ~**3 GB VRAM** saved. Usage dropped from 95.4% to 57.7%.
+> **Total:** Atlas caps + depth downscales + S3TC (37 compressions, ~4x savings each) → ~**3 GB VRAM** saved. Usage dropped from 95.4% to 57.7%.
 
 ### Test Pack & Shaders
 - Resource Pack: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) (paid, trial available)
@@ -175,6 +175,17 @@ All settings live in `config/vram-tweak.json`. Use Cloth Config GUI (Mod Menu �
     "showFrameTime": true,
     "showVram": true
     // ... more toggles
+  },
+  "s3tc": {                         // 🆕 S3TC texture compression (experimental)
+    "enabled": false,
+    "compressBlockAtlas": true,
+    "compressEntityTextures": false,
+    "compressGuiTextures": false,
+    "compressOther": false
+  },
+  "cas": {                          // 🆕 FSR CAS sharpening
+    "enabled": false,
+    "sharpness": 0.8
   }
 }
 ```
@@ -198,8 +209,10 @@ Requires JDK 25+ and Gradle 9.6+.
 
 ```
 Mixin Injection Layer
-├── MixinGpuDevice_VRAMOptimize   → createTexture() format/size interception
+├── MixinGpuDevice_VRAMOptimize    → createTexture() format/size/S3TC-flag
+├── MixinCommandEncoder_S3TC       → writeToTexture() BC1/BC3 compression
 ├── MixinGameRenderer_Metrics      → Per-frame stats + VRAM polling
+├── MixinGameRenderer_CAS          → FSR CAS sharpening pass
 ├── MixinSpriteContents_Animation  → Animation frame capping
 ├── MixinParticleEngine_Cap        → Global particle limit
 ├── MixinOptions_RenderDistance    → VRAM Governor hook
@@ -209,13 +222,16 @@ Mixin Injection Layer
 Core Modules (src/main)
 ├── VRAMOptimizer          → Format/size policy engine
 ├── VRAMGovernor           → Dynamic render distance controller
+├── S3TCDxtEncoder         → Pure Java BC1/BC3 DXT compressor
+├── TextureCategory        → Label/format/size texture classifier
 ├── MetricsEngine          → Ring-buffer performance sampling
 ├── VramFrameCounter       → Sliding-window FPS + percentile lows
 ├── VerificationLogger     → Before/after audit trail
 ├── GPUDetector            → Vendor detection + VRAM query
-└── VRAMConfig             → Gson-based config with 6 sections
+└── VRAMConfig             → Gson-based config with 8 sections
 
 Client Modules (src/client)
+├── CasShader              → GLSL CAS fullscreen post-process pass
 ├── VramTweakHud           → Singleton overlay renderer
 ├── VramTweakCommand       → /vramtweak CLI
 ├── ClothConfigFactory     → GUI integration

@@ -27,6 +27,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | **阴影贴图上限** | 限制阴影贴图分辨率 ≤ `shadowMapMaxSize` | ⚠️ 原版 ≤1024，已在限制内 |
 | **动画帧数限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
 | **粒子数量上限** | 全局粒子计数安全网 | ✅ 实验性 |
+| **S3TC 纹理压缩** | BC1/BC3 DXT 压缩后上传 GPU | 🆕 实验性 — 37 次压缩/会话，~4x 节省 |
+| **FSR CAS 锐化** | AMD 对比度自适应全屏锐化 | 🆕 实验性 — 补偿压缩模糊 |
 | **VRAM 调速器** | 显存紧张时自动降低渲染距离 | ✅ 实验性 |
 | **预算追踪** | 每帧轮询 VRAM 用量 + 可配置告警阈值 | ✅ 稳定 |
 
@@ -88,7 +90,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
 | `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
 
-> **总计：** 纹理图集 + 深度降精度（10 次），理论节省约 **3 GB 显存**，实测 VRAM 使用率从 95.4% 降至 57.7%。
+> **总计：** 纹理图集 + 深度降精度（10 次）+ S3TC（37 次压缩，~4x），理论节省约 **3 GB 显存**，实测 VRAM 使用率从 95.4% 降至 57.7%。
 
 ### 测试材质包和光影
 材质包: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/)（非免费，有试用版）  
@@ -170,6 +172,17 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
     "showFrameTime": true,
     "showVram": true
     // ... 更多独立开关
+  },
+  "s3tc": {                         // 🆕 S3TC 纹理压缩（实验性）
+    "enabled": false,
+    "compressBlockAtlas": true,
+    "compressEntityTextures": false,
+    "compressGuiTextures": false,
+    "compressOther": false
+  },
+  "cas": {                          // 🆕 FSR CAS 锐化
+    "enabled": false,
+    "sharpness": 0.8
   }
 }
 ```
@@ -193,8 +206,10 @@ cd Minecraft-AMD-GPU-Tweak
 
 ```
 Mixin 注入层
-├── MixinGpuDevice_VRAMOptimize   → createTexture() 格式/尺寸拦截
+├── MixinGpuDevice_VRAMOptimize    → createTexture() 格式/尺寸/S3TC标记
+├── MixinCommandEncoder_S3TC       → writeToTexture() BC1/BC3 压缩
 ├── MixinGameRenderer_Metrics      → 逐帧统计 + VRAM 轮询
+├── MixinGameRenderer_CAS          → FSR CAS 锐化处理
 ├── MixinSpriteContents_Animation  → 动画帧截断
 ├── MixinParticleEngine_Cap        → 全局粒子限制
 ├── MixinOptions_RenderDistance    → VRAM 调速器钩子
@@ -204,20 +219,16 @@ Mixin 注入层
 核心模块 (src/main)
 ├── VRAMOptimizer          → 格式/尺寸策略引擎
 ├── VRAMGovernor           → 动态渲染距离控制器
+├── S3TCDxtEncoder         → 纯 Java BC1/BC3 DXT 压缩器
+├── TextureCategory        → 标签/格式/尺寸纹理分类器
 ├── MetricsEngine          → 环形缓冲区性能采样
 ├── VramFrameCounter       → 滑动窗口 FPS + 百分位低帧率
 ├── VerificationLogger     → 优化前后审计追踪
 ├── GPUDetector            → 厂商检测 + VRAM 查询
-└── VRAMConfig             → 基于 Gson 的 6 段式配置
+└── VRAMConfig             → 基于 Gson 的 8 段式配置
 
 客户端模块 (src/client)
-├── VramTweakHud           → 单例叠加层渲染器
-├── VramTweakCommand       → /vramtweak CLI
-├── ClothConfigFactory     → GUI 集成
-└── ModMenuIntegration     → Mod Menu 入口
-```
-
-客户端模块 (src/client)
+├── CasShader              → GLSL CAS 全屏后处理
 ├── VramTweakHud           → 单例叠加层渲染器
 ├── VramTweakCommand       → /vramtweak CLI
 ├── ClothConfigFactory     → GUI 集成
