@@ -1,4 +1,4 @@
-# Minecraft VRAM Tweak
+# VRAM Tweak
 
 [**中文**](README_CN.md) | **English**
 
