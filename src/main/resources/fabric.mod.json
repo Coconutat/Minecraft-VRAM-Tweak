@@ -8,7 +8,6 @@
 	"license": "CC0 1.0 Universal",
 	"environment": "client",
 	"entrypoints": {
-		"main": ["test.vram.tweak.VRAMTweak"],
 		"client": ["test.vram.tweak.client.VRAMTweakClient"],
 		"modmenu": ["test.vram.tweak.gui.ModMenuIntegration"]
 	},
