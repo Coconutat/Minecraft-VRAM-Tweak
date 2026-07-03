@@ -156,17 +156,17 @@ public class VRAMOptimizer {
 
     // ---- format downscale ----
 
-    /** Only downscale 16-bit color formats. Never touch depth/stencil. */
+    /** Only downscale 16-bit color formats. 1.21.11 TextureFormat only has RGBA8 — no-op. */
     public static boolean shouldDownscaleFormat(String formatName) {
         if (!enabled || !formatDownscale || formatName == null) return false;
         if (formatName.startsWith("D") || formatName.startsWith("S")) return false;
-        return formatName.contains("16");
+        return formatName.contains("16"); // ponytail: dormant, TextureFormat has no 16-bit in 1.21.11
     }
 
     public static void logDownscale(String source, String original) {
         VerificationLogger.logFormatDownscale(source, original, "RGBA8");
         if (downscaleLogs < MAX_LOGS) {
-            LOGGER.debug("Format downscale: {} ({} 鈫?RGBA8)", source, original);
+            LOGGER.debug("Format downscale: {} ({} → RGBA8)", source, original);
             downscaleLogs++;
         } else if (downscaleLogs == MAX_LOGS) {
             LOGGER.debug("Format downscale log limit reached.");
@@ -185,22 +185,22 @@ public class VRAMOptimizer {
         return enabled && width == height && width > maxShadowSize;
     }
 
-    /** Depth formats start with "D" (D16_UNORM, D24_UNORM_S8_UINT, D32_FLOAT, etc.). */
+    /** Depth formats — 1.21.11 TextureFormat: DEPTH32 starts with "D". */
     public static boolean isDepthFormat(String formatName) {
         return formatName != null && formatName.startsWith("D");
     }
 
     // ---- depth downscale ----
 
-    /** D32_FLOAT 鈫?D16_UNORM for shadow maps. Only pure depth, no stencil. */
+    /** 1.21.11 TextureFormat only has DEPTH32, no lower depth format — no-op. */
     public static boolean shouldDownscaleDepth(String formatName) {
-        return enabled && depthDownscale && "D32_FLOAT".equals(formatName);
+        return enabled && depthDownscale && "DEPTH32".equals(formatName);
     }
 
     public static void logDepthDownscale(String original) {
-        VerificationLogger.logDepthDownscale(original, "D16_UNORM");
+        VerificationLogger.logDepthDownscale(original, "DEPTH32");
         if (downscaleLogs < MAX_LOGS) {
-            LOGGER.debug("Depth downscale: {} 鈫?D16_UNORM", original);
+            LOGGER.debug("Depth downscale: {} (1.21.11: no lower depth format)", original);
             downscaleLogs++;
         } else if (downscaleLogs == MAX_LOGS) {
             LOGGER.debug("Downscale log limit reached.");

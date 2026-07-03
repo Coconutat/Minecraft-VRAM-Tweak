@@ -1,8 +1,8 @@
 package test.vram.tweak.client.mixin;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.TextureFormat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -40,7 +40,7 @@ public class MixinGpuDevice_VRAMOptimize {
     // ---- Param 1: Supplier<String> label (fires FIRST) ----
 
     @ModifyVariable(
-        method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
+        method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
                 + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private Supplier<String> captureLabel(Supplier<String> label) {
@@ -58,10 +58,11 @@ public class MixinGpuDevice_VRAMOptimize {
 
     // ---- Param 3: GpuFormat format ----
 
-    @ModifyVariable(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
-            + "Lcom/mojang/blaze3d/textures/GpuTexture;",
+    @ModifyVariable(
+        method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
+                + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("HEAD"), ordinal = 0, argsOnly = true)
-    private GpuFormat downscaleFormat(GpuFormat fmt) {
+    private TextureFormat downscaleFormat(TextureFormat fmt) {
         CURRENT_FORMAT.set(fmt.name());
         // Passive format trace — log each distinct format once (first 50)
         if (formatTraceCount < FORMAT_TRACE_MAX) {
@@ -79,11 +80,11 @@ public class MixinGpuDevice_VRAMOptimize {
         try {
             if (VRAMOptimizer.shouldDownscaleFormat(fmt.name())) {
                 VRAMOptimizer.logDownscale("GpuDevice", fmt.name());
-                return GpuFormat.RGBA8_UNORM;
+                return TextureFormat.RGBA8;
             }
             if (VRAMOptimizer.shouldDownscaleDepth(fmt.name())) {
                 VRAMOptimizer.logDepthDownscale(fmt.name());
-                return GpuFormat.D16_UNORM;
+                return TextureFormat.DEPTH32;
             }
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("downscaleFormat failed", e);
@@ -93,7 +94,7 @@ public class MixinGpuDevice_VRAMOptimize {
 
     // ---- Param 4: int width ----
 
-    @ModifyVariable(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
+    @ModifyVariable(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
             + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("HEAD"), ordinal = 1, argsOnly = true)
     private int capWidth(int w) {
@@ -118,7 +119,7 @@ public class MixinGpuDevice_VRAMOptimize {
 
     // ---- Param 5: int height ----
 
-    @ModifyVariable(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
+    @ModifyVariable(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
             + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("HEAD"), ordinal = 2, argsOnly = true)
     private int capHeight(int h) {
@@ -155,10 +156,10 @@ public class MixinGpuDevice_VRAMOptimize {
 
     // ---- Metrics ----
 
-    @Inject(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
+    @Inject(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
             + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("RETURN"))
-    private void onTextureCreated(Supplier<String> label, int usage, GpuFormat format,
+    private void onTextureCreated(Supplier<String> label, int usage, TextureFormat format,
             int width, int height, int depth, int mipLevels,
             CallbackInfoReturnable<GpuTexture> cir) {
         MetricsEngine.textureAllocations.incrementAndGet();

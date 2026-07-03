@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
 import test.vram.tweak.config.VRAMConfig;
@@ -17,7 +17,7 @@ import test.vram.tweak.diagnostic.VramFrameCounter;
 
 /**
  * HUD overlay for vram-tweak. Singleton — shared by tick and render mixins.
- * Text list built in onClientTick(), rendered in render() via GuiGraphicsExtractor.
+ * Text list built in onClientTick(), rendered in render() via GuiGraphics.
  */
 public class VramTweakHud {
 
@@ -115,8 +115,8 @@ public class VramTweakHud {
         }
     }
 
-    /** Render using GuiGraphicsExtractor.text(). Called from MixinGui_Hud. */
-    public void render(GuiGraphicsExtractor g) {
+    /** Render using GuiGraphics.drawString(). Called from MixinGui_Hud. */
+    public void render(GuiGraphics g) {
         var hud = VRAMConfig.getInstance().hud;
         if (!hud.enabled || textList.isEmpty()) return;
         var font = Minecraft.getInstance().font;
@@ -124,7 +124,7 @@ public class VramTweakHud {
         int y = hud.offsetY;
 
         for (Component line : textList) {
-            g.text(font, line, x, y, 0xFFFFFFFF);
+            g.drawString(font, line, x, y, 0xFFFFFFFF);
             y += font.lineHeight + 2;
         }
     }

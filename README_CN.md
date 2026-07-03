@@ -2,9 +2,9 @@
 
 [**English**](README.md) | **中文**
 
-> Minecraft 26.2 Fabric 显存优化模组 — 在不修改着色器或资源包的前提下降低 GPU 显存占用。
+> Minecraft 1.21.11 Fabric 显存优化模组 — 在不修改着色器或资源包的前提下降低 GPU 显存占用。
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
@@ -22,8 +22,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | 功能 | 原理 | 实测触发情况 |
 |------|------|-------------|
 | **纹理图集上限** | 限制 `GpuDevice.createTexture()` 宽高 ≤ `maxAtlasSize` | ✅ 单会话 12 次（blocks.png 16384→4096 px） |
-| **深度缓冲降精度** | D32_FLOAT → D16_UNORM 阴影贴图 | ✅ 单会话 10 次 |
-| **颜色缓冲降精度** | RGBA16F → RGBA8（适配重型光影包） | ⚠️ 当前测试环境未触发，等未来触发，也许有一天我们需要它 |
+|| **颜色缓冲降精度** | 高精度 → RGBA8（适配重型光影包） | ⚠️ 1.21.11 TextureFormat 仅有 RGBA8，暂不触发 |
 | **阴影贴图上限** | 限制阴影贴图分辨率 ≤ `shadowMapMaxSize` | ⚠️ 原版 ≤1024，已在限制内 |
 | **动画帧数限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
 | **粒子数量上限** | 全局粒子计数安全网 | ✅ 实验性 |
@@ -70,7 +69,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 ### 测试材质包和光影
 材质包:[EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) 非免费材质包，但是有试用版  
-光影:[春v2](https://modrinth.com/shader/spring-shaders) 作者已经公开发布
+光影:[春v2](https://modrinth.com/shader/spring-shaders) 作者已经公开发布  
+> 注：以上测试基于 MC 26.2，1.21.11 版本待实测验证。
 ***
 ### 开启前
 | 指标 | 数值 |
@@ -94,7 +94,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 |------|------|------|
 | **Sodium** | 硬依赖 | 0.9.0+ |
 | Iris | 软依赖 | 1.11+ *（光影兼容）* |
-| Cloth Config | 软依赖 | 26.2+ *（GUI）* |
+|| Cloth Config | 软依赖 | 21.11+ *（GUI）* |
 
 **平台**：Windows、Linux
 
@@ -112,7 +112,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 ## 快速开始
 
-1. 安装 Minecraft 26.2 的 [Fabric](https://fabricmc.net/use/)
+1. 安装 Minecraft 1.21.11 的 [Fabric](https://fabricmc.net/use/)
 2. 安装 [Sodium](https://modrinth.com/mod/sodium)
 3. 将 `vram-tweak-x.x.x.jar` 放入 `mods/` 文件夹
 4. 启动游戏 — 在 Mod Menu → VRAM Tweak 中手动启用
@@ -128,8 +128,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
   "vram": {
     "enabled": true,           // VRAM 总开关
     "shadowMapMaxSize": 1024,  // 阴影贴图分辨率上限
-    "formatDownscale": false,  // RGBA16F→RGBA8
-    "depthDownscale": false,   // D32→D16
+    "formatDownscale": false,  // 1.21.11 TextureFormat 无 16-bit 格式，dormant
+    "depthDownscale": false,   // 1.21.11 仅 DEPTH32，无可下采样目标
     "budgetTracking": false,   // VRAM 用量监控
     "budgetWarningPercent": 80 // 超过此百分比告警
   },
@@ -173,7 +173,7 @@ cd Minecraft-AMD-GPU-Tweak
 # 输出: build/libs/vram-tweak-x.x.x.jar
 ```
 
-需要 JDK 25+ 和 Gradle 9.6+。
+需要 JDK 21+ 和 Gradle 9.6+。
 
 ---
 

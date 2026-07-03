@@ -19,7 +19,7 @@ public class VRAMTweakClient implements ClientModInitializer {
                 cfg.vram.formatDownscale, cfg.vram.budgetTracking);
         VRAMGovernor.initialize();
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 VramTweakCommand.register(dispatcher));
         VRAMTweak.LOGGER.info(Component.translatable("vramtweak.client.registered").getString());
     }
