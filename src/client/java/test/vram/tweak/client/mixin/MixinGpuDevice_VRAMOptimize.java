@@ -1,6 +1,6 @@
 package test.vram.tweak.client.mixin;
 
-import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.opengl.GlDevice;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.TextureFormat;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,11 +20,11 @@ import test.vram.tweak.vram.VRAMOptimizer;
  * Single choke-point for ALL GPU texture creation in Blaze3D.
  *
  * @ModifyVariable handlers fire in PARAMETER ORDER (not Inject order).
- * Execution: Supplier → int usage → GpuFormat → int width → int height → depth → mipLevels.
+ * Execution: Supplier → int usage → TextureFormat → int width → int height → depth → mipLevels.
  * This is why we capture IS_ATLAS in the Supplier handler (param 1, fires first),
  * not in an @Inject which would fire AFTER all @ModifyVariable handlers.
  */
-@Mixin(GpuDevice.class)
+@Mixin(GlDevice.class)
 public class MixinGpuDevice_VRAMOptimize {
 
     private static final ThreadLocal<String> CURRENT_FORMAT = new ThreadLocal<>();
@@ -68,7 +68,7 @@ public class MixinGpuDevice_VRAMOptimize {
         if (formatTraceCount < FORMAT_TRACE_MAX) {
             String name = fmt.name();
             if (FORMATS_SEEN.add(name)) {
-                VRAMTweak.LOGGER.info("[FormatTrace] GpuDevice.createTexture format: {} (#{})",
+                VRAMTweak.LOGGER.info("[FormatTrace] GlDevice.createTexture format: {} (#{})",
                         name, FORMATS_SEEN.size());
             }
             formatTraceCount++;
@@ -79,7 +79,7 @@ public class MixinGpuDevice_VRAMOptimize {
         }
         try {
             if (VRAMOptimizer.shouldDownscaleFormat(fmt.name())) {
-                VRAMOptimizer.logDownscale("GpuDevice", fmt.name());
+                VRAMOptimizer.logDownscale("GlDevice", fmt.name());
                 return TextureFormat.RGBA8;
             }
             if (VRAMOptimizer.shouldDownscaleDepth(fmt.name())) {
