@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Supplier;
 
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.compression.TextureCategory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -31,6 +32,7 @@ public class MixinGpuDevice_VRAMOptimize {
     private static final ThreadLocal<Integer> STORED_WIDTH = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> IS_ATLAS = new ThreadLocal<>();
     private static final ThreadLocal<String> ATLAS_NAME = new ThreadLocal<>();
+    private static final ThreadLocal<TextureCategory> TEXTURE_CATEGORY = new ThreadLocal<>();
 
     // Format trace (diagnostic: log first N distinct GpuFormats seen)
     private static final java.util.Set<String> FORMATS_SEEN = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -49,9 +51,12 @@ public class MixinGpuDevice_VRAMOptimize {
             boolean isAtlas = name != null && name.contains("atlas");
             IS_ATLAS.set(isAtlas);
             ATLAS_NAME.set(isAtlas ? name : null);
+            // Classify for S3TC (format not known yet — classification refined in downscaleFormat)
+            TEXTURE_CATEGORY.set(TextureCategory.classify(name, null, 0, 0));
         } catch (Exception e) {
             IS_ATLAS.set(false);
             ATLAS_NAME.set(null);
+            TEXTURE_CATEGORY.set(TextureCategory.OTHER);
         }
         return label;
     }
@@ -154,7 +159,7 @@ public class MixinGpuDevice_VRAMOptimize {
         return h;
     }
 
-    // ---- Metrics ----
+    // ---- Metrics + S3TC flag ----
 
     @Inject(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)"
             + "Lcom/mojang/blaze3d/textures/GpuTexture;",
@@ -163,5 +168,24 @@ public class MixinGpuDevice_VRAMOptimize {
             int width, int height, int depth, int mipLevels,
             CallbackInfoReturnable<GpuTexture> cir) {
         MetricsEngine.textureAllocations.incrementAndGet();
+
+        // S3TC compression flag: set if texture category is compressible
+        try {
+            var cfg = VRAMConfig.getInstance().s3tc;
+            if (cfg.enabled) {
+                TextureCategory cat = TEXTURE_CATEGORY.get();
+                if (cat != null && cat.isCompressible(cfg)
+                        && TextureCategory.meetsSizeThreshold(width, height)
+                        && "RGBA8".equals(format.name())) {
+                    MixinGlCommandEncoder_S3TC.S3TC_FLAG.set(true);
+                    MixinGlCommandEncoder_S3TC.S3TC_WIDTH.set(width);
+                    MixinGlCommandEncoder_S3TC.S3TC_HEIGHT.set(height);
+                }
+            }
+        } catch (Exception e) {
+            VRAMTweak.LOGGER.error("S3TC flag set failed", e);
+        } finally {
+            TEXTURE_CATEGORY.remove();
+        }
     }
 }

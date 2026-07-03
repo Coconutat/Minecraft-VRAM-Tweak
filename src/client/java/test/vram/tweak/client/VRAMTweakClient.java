@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.client.shader.CasShader;
 import test.vram.tweak.command.VramTweakCommand;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.vram.VRAMGovernor;
@@ -21,6 +22,7 @@ public class VRAMTweakClient implements ClientModInitializer {
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 VramTweakCommand.register(dispatcher));
+        CasShader.init();
         VRAMTweak.LOGGER.info(Component.translatable("vramtweak.client.registered").getString());
     }
 }

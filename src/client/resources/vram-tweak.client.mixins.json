@@ -4,9 +4,12 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"accessor.SpriteContentsAccessor",
+		"accessor.GlTextureAccessor",
 		"MixinMinecraftClient_Init",
 		"MixinGpuDevice_VRAMOptimize",
+		"MixinGlCommandEncoder_S3TC",
 		"MixinGameRenderer_Metrics",
+		"MixinGameRenderer_CAS",
 		"MixinOptions_RenderDistance",
 		"MixinSpriteContents_AnimationLimit",
 		"MixinParticleEngine_Cap",
