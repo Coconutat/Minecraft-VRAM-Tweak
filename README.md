@@ -65,7 +65,7 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 > **Total:** 6 atlases from 16384px → 4096px, saving ~**900 MB VRAM**.
 
-### Runtime Stats
+### Session Stats
 
 | Metric | Value |
 |--------|-------|
@@ -88,7 +88,8 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 | Cloth Config | Soft | 21.11+ *(GUI)* |
 | ModMenu | Soft | 17.0+ *(config button)* |
 
-**Platform:** Windows, Linux
+**Platform:** Windows, Linux  
+**Java:** 21+
 
 > **Compatibility:** Tested with 90+ mods including C2ME, Lithium, Iris, Continuity, Entity Culling.
 
@@ -186,6 +187,12 @@ Core (src/main)
 ├── VerificationLogger     → Audit trail
 ├── GPUDetector            → Vendor detection + VRAM queries
 └── VRAMConfig             → Gson-based 6-section config
+
+Client (src/client)
+├── VramTweakHud           → Singleton overlay renderer
+├── VramTweakCommand       → /vramtweak CLI
+├── ClothConfigFactory     → GUI integration
+└── ModMenuIntegration     → Mod Menu entry point
 ```
 
 ## License

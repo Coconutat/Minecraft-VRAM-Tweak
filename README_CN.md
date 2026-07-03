@@ -86,7 +86,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 > **总计：** 6 张超大图集从最高 16384px 压缩至 4096px，理论节省约 **900 MB 显存**。
 
-### 运行状态
+### 会话统计
 
 | 指标 | 数值 |
 |------|------|
@@ -109,7 +109,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | Cloth Config | 软依赖 | 21.11+ *（GUI）* |
 | ModMenu | 软依赖 | 17.0+ *（配置按钮）* |
 
-**平台**：Windows、Linux
+**平台**：Windows、Linux  
+**Java**：21+
 
 > **兼容性：** 已在 90+ mod 环境中稳定运行，包括 C2ME、Lithium、Iris、Continuity、Entity Culling 等。
 
