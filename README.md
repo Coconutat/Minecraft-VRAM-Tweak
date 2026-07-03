@@ -101,6 +101,8 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 | Iris | Soft | 1.11+ *(shader compatibility)* |
 | Cloth Config | Soft | 26.2+ *(GUI)* |
 
+**Platform**: Windows, Linux
+
 ---
 
 ## GPU Support
@@ -109,7 +111,7 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 |-----------|------------|---------------|
 | AMD | ✅ `GL_VENDOR` | ✅ `GL_ATI_meminfo` (KB-precise) |
 | NVIDIA | ✅ `GL_VENDOR` | ✅ `GL_NVX_gpu_memory_info` (KB-precise) |
-| Intel | ✅ `GL_VENDOR` | ❌ No dedicated VRAM (iGPU uses system RAM) |
+| Intel | ✅ `GL_VENDOR` | ❌ No dedicated VRAM (iGPU uses system RAM). Safe — automatically skipped. |
 
 ---
 

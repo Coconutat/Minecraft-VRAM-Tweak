@@ -96,6 +96,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | Iris | 软依赖 | 1.11+ *（光影兼容）* |
 | Cloth Config | 软依赖 | 26.2+ *（GUI）* |
 
+**平台**：Windows、Linux
+
 ---
 
 ## GPU 支持
@@ -104,7 +106,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 |---------|---------|----------|
 | AMD | ✅ `GL_VENDOR` | ✅ `GL_ATI_meminfo`（KB 级精度） |
 | NVIDIA | ✅ `GL_VENDOR` | ✅ `GL_NVX_gpu_memory_info`（KB 级精度） |
-| Intel | ✅ `GL_VENDOR` | ❌ 无独立显存（核显使用系统内存） |
+| Intel | ✅ `GL_VENDOR` | ❌ 无独立显存（核显使用系统内存），自动安全跳过 |
 
 ---
 
