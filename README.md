@@ -19,6 +19,8 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin
 | **Format downscale** | High-precision → RGBA8 | ⚠️ Dormant (1.21.11 only has RGBA8) |
 | **Depth downscale** | High-precision depth → lower | ⚠️ Dormant (1.21.11 only has DEPTH32) |
 | **Shadow map cap** | Clamp square depth texture resolution | ✅ Stable |
+| **S3TC compression** | BC1/BC3 DXT at `GlCommandEncoder.writeToTexture()` | 🆕 Experimental |
+| **FSR CAS sharpening** | Post-process fullscreen shader on main framebuffer | 🆕 Experimental |
 | **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
 | **Particle count cap** | Global particle count safety net | ✅ Experimental |
 | **VRAM Governor** | Auto-lower render distance under pressure | ✅ Experimental |
@@ -144,6 +146,17 @@ All settings in `config/vram-tweak.json`. Use Cloth Config GUI for interactive c
     "enabled": false,
     "maxParticles": 2000
   },
+  "s3tc": {                         // 🆕 S3TC texture compression (experimental)
+    "enabled": false,
+    "compressBlockAtlas": true,
+    "compressEntityTextures": false,
+    "compressGuiTextures": false,
+    "compressOther": false
+  },
+  "cas": {                          // 🆕 FSR CAS sharpening
+    "enabled": false,
+    "sharpness": 0.8
+  },
   "hud": {
     "enabled": true,
     "showFps": true
@@ -171,24 +184,29 @@ Requires JDK 21+ and Gradle 9.6+.
 
 ```
 Mixin Layer
-├── MixinGpuDevice_VRAMOptimize   → createTexture() format/size intercept
-├── MixinGameRenderer_Metrics     → per-frame stats + VRAM poll
-├── MixinSpriteContents_Animation  → animation frame truncation
-├── MixinParticleEngine_Cap       → global particle limit
-├── MixinOptions_RenderDistance   → governor hook
-├── MixinGui_Hud                  → HUD overlay render
-└── MixinMinecraft_Hud            → HUD data collection
+├── MixinGpuDevice_VRAMOptimize   → createTexture() format/size/S3TC-flag
+├── MixinGlCommandEncoder_S3TC   → writeToTexture() DXT compression
+├── MixinGameRenderer_Metrics    → per-frame stats + VRAM poll
+├── MixinGameRenderer_CAS        → FSR CAS sharpening pass
+├── MixinSpriteContents_Animation → animation frame truncation
+├── MixinParticleEngine_Cap      → global particle limit
+├── MixinOptions_RenderDistance  → governor hook
+├── MixinGui_Hud                 → HUD overlay render
+└── MixinMinecraft_Hud           → HUD data collection
 
 Core (src/main)
 ├── VRAMOptimizer          → Format/size policy engine
 ├── VRAMGovernor           → Dynamic render distance controller
+├── S3TCDxtEncoder         → Pure Java BC1/BC3 compressor
+├── TextureCategory        → Label/format/size classifier
 ├── MetricsEngine          → Ring-buffer performance sampler
 ├── VramFrameCounter       → Sliding-window FPS + percentile lows
 ├── VerificationLogger     → Audit trail
 ├── GPUDetector            → Vendor detection + VRAM queries
-└── VRAMConfig             → Gson-based 6-section config
+└── VRAMConfig             → Gson-based 8-section config
 
 Client (src/client)
+├── CasShader              → GLSL CAS fullscreen pass
 ├── VramTweakHud           → Singleton overlay renderer
 ├── VramTweakCommand       → /vramtweak CLI
 ├── ClothConfigFactory     → GUI integration
