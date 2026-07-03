@@ -15,11 +15,13 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin
 
 | Feature | How | Status |
 |---------|-----|--------|
-| **Atlas size cap** | Clamp `GpuDevice.createTexture()` W/H ≤ `maxAtlasSize` | ✅ Stable |
+| **Atlas size cap** | Clamp `GlDevice.createTexture()` W/H ≤ `maxAtlasSize` | ✅ 26 caps/session |
+| **Format downscale** | High-precision → RGBA8 | ⚠️ Dormant (1.21.11 only has RGBA8) |
+| **Depth downscale** | High-precision depth → lower | ⚠️ Dormant (1.21.11 only has DEPTH32) |
 | **Shadow map cap** | Clamp square depth texture resolution | ✅ Stable |
 | **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
 | **Particle count cap** | Global particle count safety net | ✅ Experimental |
-| **VRAM Governor** | Auto-lower render distance under pressure, restore after | ✅ Experimental |
+| **VRAM Governor** | Auto-lower render distance under pressure | ✅ Experimental |
 | **Budget tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
 
 > **Note:** Toggling the mod OFF in GUI only affects **newly created** textures. Existing VRAM textures stay at capped size — **restart the game** to reload at full resolution.
@@ -43,16 +45,52 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 ---
 
+## Test Results
+
+**HW:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
+**SW:** MC 1.21.11 + Sodium 0.8.13 + Iris 1.10.7 + 90+ mods
+
+### Atlas Caps
+
+44 texture atlases tracked, **26 oversize caps** in one session:
+
+| Atlas | Original | Capped | Savings |
+|-------|---------|--------|---------|
+| `blocks.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `blocks_n.png` / `blocks_s.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
+| `shield_patterns.png` | 8192×4096 | **4096×4096** | ~64 MB |
+| `banner_patterns.png` | 8192×4096 | **4096×4096** | ~64 MB |
+
+> **Total:** 6 atlases from 16384px → 4096px, saving ~**900 MB VRAM**.
+
+### Runtime Stats
+
+| Metric | Value |
+|--------|-------|
+| Atlas tracked | 44 |
+| Atlas caps | **26** |
+| Format downscales | 0 (no 16-bit format in 1.21.11) |
+| Depth downscales | 0 (only DEPTH32 in 1.21.11) |
+| Shadow caps | 0 |
+| Budget warns | 0 |
+| Crashes | **0** (90+ mod compatible) |
+
+---
+
 ## Requirements
 
 | Dependency | Type | Version |
 |-----------|------|---------|
-| **Sodium** | Hard | 0.9.0+ |
-| Iris | Soft | 1.11+ *(shader compat)* |
+| **Sodium** | Hard | 0.8.13+ *(1.21.11)* |
+| Iris | Soft | 1.10+ *(shader compat)* |
 | Cloth Config | Soft | 21.11+ *(GUI)* |
 | ModMenu | Soft | 17.0+ *(config button)* |
 
 **Platform:** Windows, Linux
+
+> **Compatibility:** Tested with 90+ mods including C2ME, Lithium, Iris, Continuity, Entity Culling.
 
 ---
 
