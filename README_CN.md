@@ -2,9 +2,9 @@
 
 [**English**](README.md) | **中文**
 
-> Minecraft 1.21.11 Fabric 显存优化模组 — 在不修改着色器或资源包的前提下降低 GPU 显存占用。
+> Minecraft 1.21.11 / 26.2 Fabric 显存优化模组 — 在不修改着色器或资源包的前提下降低 GPU 显存占用。
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-blue)](https://www.minecraft.net)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11_|_26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---

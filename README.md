@@ -2,9 +2,9 @@
 
 **English** | [中文](README_CN.md)
 
-> Minecraft 1.21.11 Fabric VRAM optimization mod — reduce GPU VRAM usage without modifying shaders or resource packs.
+> Minecraft 1.21.11 / 26.2 Fabric VRAM optimization mod — reduce GPU VRAM usage without modifying shaders or resource packs.
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-blue)](https://www.minecraft.net)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11_|_26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
@@ -19,7 +19,7 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin
 | **Format downscale** | High-precision → RGBA8 | ⚠️ Dormant (1.21.11 only has RGBA8) |
 | **Depth downscale** | High-precision depth → lower | ⚠️ Dormant (1.21.11 only has DEPTH32) |
 | **Shadow map cap** | Clamp square depth texture resolution | ✅ Stable |
-| **S3TC compression** | BC1/BC3 DXT at `GlCommandEncoder.writeToTexture()` | 🆕 Experimental |
+| **S3TC compression** | BC1/BC3 DXT at `GlCommandEncoder.writeToTexture()` | 🆕 Experimental (saves 4-8x VRAM) |
 | **FSR CAS sharpening** | Post-process fullscreen shader on main framebuffer | 🆕 Experimental |
 | **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
 | **Particle count cap** | Global particle count safety net | ✅ Experimental |
@@ -50,7 +50,7 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 ## Test Results
 
 **HW:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
-**SW:** MC 1.21.11 + Sodium 0.8.13 + Iris 1.10.7 + 90+ mods
+**SW:** MC 1.21.11 + Sodium 0.8.13 + Iris 1.10.7 (1.21.11) / MC 26.2 + Sodium 0.9.0 + Iris 1.11.1 (26.2)
 
 ### Atlas Caps
 
@@ -85,13 +85,13 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 | Dependency | Type | Version |
 |-----------|------|---------|
-| **Sodium** | Hard | 0.8.13+ *(1.21.11)* |
-| Iris | Soft | 1.10+ *(shader compat)* |
-| Cloth Config | Soft | 21.11+ *(GUI)* |
-| ModMenu | Soft | 17.0+ *(config button)* |
+| **Sodium** | Hard | 0.8.13+ (1.21.11) / 0.9.0+ (26.2) |
+| Iris | Soft | 1.10+ / 1.11+ *(shader compat)* |
+| Cloth Config | Soft | 21.11+ / 26.2+ *(GUI)* |
+| ModMenu | Soft | 17.0+ / 20.0+ *(config button)* |
 
 **Platform:** Windows, Linux  
-**Java:** 21+
+**Java:** 21+ (1.21.11) / 25+ (26.2)
 
 > **Compatibility:** Tested with 90+ mods including C2ME, Lithium, Iris, Continuity, Entity Culling.
 
@@ -109,7 +109,7 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 ## Quick Start
 
-1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 1.21.11
+1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 1.21.11 or 26.2
 2. Install [Sodium](https://modrinth.com/mod/sodium)
 3. Drop `vram-tweak-x.x.x.jar` into `mods/`
 4. Launch — enable in Mod Menu → VRAM Tweak
@@ -125,8 +125,8 @@ All settings in `config/vram-tweak.json`. Use Cloth Config GUI for interactive c
   "vram": {
     "enabled": true,
     "shadowMapMaxSize": 1024,
-    "formatDownscale": false,  // dormant in 1.21.11 (TextureFormat only has RGBA8)
-    "depthDownscale": false,   // dormant (TextureFormat only has DEPTH32)
+    "formatDownscale": false,  // dormant in 1.21.11 (only RGBA8); 26.2 may trigger
+    "depthDownscale": false,   // dormant in 1.21.11 (only DEPTH32); 26.2 triggers
     "budgetTracking": false,
     "budgetWarningPercent": 80
   },
@@ -185,7 +185,7 @@ Requires JDK 21+ and Gradle 9.6+.
 ```
 Mixin Layer
 ├── MixinGpuDevice_VRAMOptimize   → createTexture() format/size/S3TC-flag
-├── MixinGlCommandEncoder_S3TC   → writeToTexture() DXT compression
+├── MixinGlCommandEncoder_S3TC   → writeToTexture() DXT compression (1.21.11: GlCommandEncoder, 26.2: CommandEncoder)
 ├── MixinGameRenderer_Metrics    → per-frame stats + VRAM poll
 ├── MixinGameRenderer_CAS        → FSR CAS sharpening pass
 ├── MixinSpriteContents_Animation → animation frame truncation
