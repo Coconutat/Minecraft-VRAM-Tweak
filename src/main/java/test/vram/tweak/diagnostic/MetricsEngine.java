@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.lwjgl.opengl.GL11;
 
+import test.vram.tweak.gpu.GPUDetector;
+
 /**
  * Ring-buffer runtime metrics engine. Thread-safe, minimal GC.
  *
@@ -137,19 +139,32 @@ public class MetricsEngine {
         }
     }
 
-    /** Independent VRAM poll via GL_ATI_meminfo. Works regardless of optimizer state. */
+    /** Independent VRAM poll. Works regardless of optimizer state. */
     private static void pollVRAM() {
         try {
-            int[] vals = new int[4];
-            GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
-            long freeKB = vals[0] & 0xFFFFFFFFL;
+            long freeKB;
+            long totalKB;
+            switch (GPUDetector.getGPU()) {
+                case AMD -> {
+                    int[] vals = new int[4];
+                    GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
+                    freeKB = vals[0] & 0xFFFFFFFFL;
+                    totalKB = Math.max(freeKB, 8192L * 1024); // ponytail: can't query total on AMD, assume 8GB+
+                }
+                case NVIDIA -> {
+                    int[] freeVal = new int[1], totalVal = new int[1];
+                    GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
+                    GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
+                    freeKB = freeVal[0] & 0xFFFFFFFFL;
+                    totalKB = totalVal[0] & 0xFFFFFFFFL;
+                }
+                default -> { return; } // Intel/OTHER — no VRAM tracking
+            }
             long freeMB = freeKB / 1024;
-            // Total from ATI_meminfo: max(8192, freeKB) for safety. Real GPU has 8GB.
-            long totalKB = Math.max(freeKB, 8192 * 1024); // ponytail: assume at least 8GB
             lastVramTotalMB = totalKB / 1024;
             lastVramUsedMB = lastVramTotalMB - freeMB;
         } catch (Exception ignored) {
-            // GL context might not be current 鈥?skip this poll
+            // GL context might not be current — skip this poll
         }
     }
 

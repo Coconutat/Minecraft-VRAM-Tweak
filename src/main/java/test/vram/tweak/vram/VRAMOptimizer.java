@@ -79,7 +79,8 @@ public class VRAMOptimizer {
         try {
             int[] result = new int[4];
             GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-            return (long) result[0] * 1024L;
+            // GL_ATI_meminfo returns unsigned int KB. Handle sign extension.
+            return (result[0] & 0xFFFFFFFFL) * 1024L; // KB → bytes
         } catch (Exception e) { return -1; }
     }
 
@@ -96,8 +97,10 @@ public class VRAMOptimizer {
         try {
             return switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    long free = queryFreeVRAM_AMD();
-                    yield free > 0 ? free / 1024 / 1024 : 0;
+                    // GL_ATI_meminfo only reports free VRAM — total not directly queryable.
+                    // Use conservative estimate: max(free, 8GB) in KB.
+                    long freeKB = queryFreeVRAM_AMD() / 1024;
+                    yield Math.max(freeKB, 8192L * 1024) / 1024; // KB → MB
                 }
                 case NVIDIA -> {
                     int[] result = new int[1];
