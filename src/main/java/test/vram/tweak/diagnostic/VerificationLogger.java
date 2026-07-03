@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,14 @@ public class VerificationLogger {
     private static final AtomicInteger budgetWarnings = new AtomicInteger();
     private static final AtomicInteger atlasTracked = new AtomicInteger();
     private static final AtomicInteger atlasCaps = new AtomicInteger();
+
+    // S3TC
+    private static final AtomicInteger s3tcCompresses = new AtomicInteger();
+    private static final AtomicInteger s3tcSkips = new AtomicInteger();
+    private static final AtomicLong s3tcBytesSaved = new AtomicLong();
+
+    // CAS
+    private static final AtomicInteger casFrames = new AtomicInteger();
 
     private static boolean enabled() {
         return VRAMConfig.getInstance().diagnostic.verificationLog;
@@ -93,6 +102,13 @@ public class VerificationLogger {
                 + " cooldown=" + c.governor.cooldownTicks + "t");
         writeln("  Particle: enabled=" + c.particle.enabled
                 + " max=" + c.particle.maxParticles);
+        writeln("  S3TC: enabled=" + c.s3tc.enabled
+                + " blockAtlas=" + c.s3tc.compressBlockAtlas
+                + " entities=" + c.s3tc.compressEntityTextures
+                + " gui=" + c.s3tc.compressGuiTextures
+                + " other=" + c.s3tc.compressOther);
+        writeln("  CAS: enabled=" + c.cas.enabled
+                + " sharpness=" + c.cas.sharpness);
         writeln("");
         writeln("[Events]");
         fileWriter.flush();
@@ -220,19 +236,63 @@ public class VerificationLogger {
                 c.governor.minDistance, c.governor.cooldownTicks);
         LOG.info("{} Particle: enabled={} max={}",
                 PFX, c.particle.enabled, c.particle.maxParticles);
+        LOG.info("{} S3TC: enabled={} blockAtlas={} entities={} gui={} other={}",
+                PFX, c.s3tc.enabled, c.s3tc.compressBlockAtlas,
+                c.s3tc.compressEntityTextures, c.s3tc.compressGuiTextures, c.s3tc.compressOther);
+        LOG.info("{} CAS: enabled={} sharpness={}",
+                PFX, c.cas.enabled, c.cas.sharpness);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
+    }
+
+    // ---- S3TC ----
+
+    public static void logS3TCCompress(String label, int w, int h, String fmt,
+            long origBytes, long compBytes) {
+        if (!enabled()) return;
+        int n = s3tcCompresses.incrementAndGet();
+        s3tcBytesSaved.addAndGet(origBytes - compBytes);
+        if (n <= FULL_LOG || n % SAMPLE_EVERY == 0) {
+            logBoth(String.format("S3TC compress #%d: %s %d×%d %s %d→%d bytes (%.1fx)",
+                    n, label, w, h, fmt, origBytes, compBytes, (double) origBytes / Math.max(compBytes, 1)));
+        }
+    }
+
+    public static void logS3TCSkip(String label, int w, int h, String reason) {
+        if (!enabled()) return;
+        int n = s3tcSkips.incrementAndGet();
+        if (n <= FULL_LOG) {
+            logBoth(String.format("S3TC skip #%d: %s %d×%d — %s", n, label, w, h, reason));
+        }
+    }
+
+    // ---- CAS ----
+
+    public static void logCasInit(int program) {
+        if (!enabled()) return;
+        logBoth("CAS shader initialized: program=" + program);
+    }
+
+    public static void logCasFrame(int frame, int w, int h, float sharpness) {
+        if (!enabled()) return;
+        casFrames.incrementAndGet();
+        if (frame == 1 || frame % 600 == 0) {
+            logBoth(String.format("CAS frame #%d: %d×%d sharpness=%.1f", frame, w, h, sharpness));
+        }
     }
 
     // ---- Summary ----
 
     public static String getSummary() {
+        long savedMB = s3tcBytesSaved.get() / (1024 * 1024);
         return String.format(
                 "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
                 + "Anim caps:%d | Particle rejects:%d | Governor actions:%d | Budget warns:%d | "
-                + "Atlas tracked:%d | Atlas caps:%d",
+                + "Atlas tracked:%d | Atlas caps:%d | "
+                + "S3TC compresses:%d skips:%d saved:%dMB | CAS frames:%d",
                 shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
                 animCaps.get(), particleRejects.get(), governorActions.get(),
-                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get());
+                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get(),
+                s3tcCompresses.get(), s3tcSkips.get(), savedMB, casFrames.get());
     }
 
     public static synchronized void shutdown() {

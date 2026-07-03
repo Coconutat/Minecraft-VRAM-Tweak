@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import test.vram.tweak.client.mixin.accessor.GlTextureAccessor;
 import test.vram.tweak.client.shader.CasShader;
+import test.vram.tweak.diagnostic.VerificationLogger;
 
 /**
  * Apply FSR CAS sharpening after world render, before HUD overlay.
@@ -22,6 +23,7 @@ import test.vram.tweak.client.shader.CasShader;
 public class MixinGameRenderer_CAS {
 
     private static boolean casInitialized;
+    private static int casFrameCount;
 
     @Inject(method = "render(Lnet/minecraft/client/DeltaTracker;Z)V",
             at = @At(value = "INVOKE",
@@ -31,17 +33,23 @@ public class MixinGameRenderer_CAS {
             if (!casInitialized) {
                 CasShader.init();
                 casInitialized = true;
+                VerificationLogger.logCasInit(1);
             }
 
             var mc = Minecraft.getInstance();
             var mainTarget = mc.getMainRenderTarget();
             if (mainTarget == null) return;
 
+            var cfg = test.vram.tweak.config.VRAMConfig.getInstance().cas;
+            if (!cfg.enabled || cfg.sharpness <= 0f) return;
+
             int colorTexId = ((GlTextureAccessor) mainTarget.getColorTexture()).getId();
             int w = mc.getWindow().getWidth();
             int h = mc.getWindow().getHeight();
 
             CasShader.apply(colorTexId, w, h);
+            casFrameCount++;
+            VerificationLogger.logCasFrame(casFrameCount, w, h, cfg.sharpness);
         } catch (Exception e) {
             // ponytail: CAS is cosmetic, never crash the game
         }

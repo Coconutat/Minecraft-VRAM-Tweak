@@ -178,7 +178,8 @@ public class MixinGpuDevice_VRAMOptimize {
                 if (cat != null && cat.isCompressible(cfg)
                         && TextureCategory.meetsSizeThreshold(width, height)
                         && "RGBA8".equals(format.name())) {
-                    S3TCFlag.set(true, width, height);
+                    String texName = label.get();
+                    S3TCFlag.set(true, width, height, texName != null ? texName : "unknown");
                 }
             }
         } catch (Exception e) {

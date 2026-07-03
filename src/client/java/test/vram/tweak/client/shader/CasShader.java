@@ -141,6 +141,7 @@ public class CasShader {
             GL32C.glBindVertexArray(0);
 
             VRAMTweak.LOGGER.info("[CAS] Shader initialized. program={}", programId);
+            test.vram.tweak.diagnostic.VerificationLogger.logCasInit(programId);
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("[CAS] Init failed, CAS disabled", e);
             programId = 0;
