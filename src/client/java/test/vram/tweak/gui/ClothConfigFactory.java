@@ -41,10 +41,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
                 .build());
 
-        vram.addEntry(eb.startIntSlider(
+        vram.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.shadowMapMaxSize"),
-                        cfg.vram.shadowMapMaxSize, 256, 4096)
+                        cfg.vram.shadowMapMaxSize)
                 .setDefaultValue(1024)
+                .setMin(256).setMax(4096)
                 .setTooltip(Component.translatable("vramtweak.gui.option.shadowMapMaxSize.tooltip"))
                 .setSaveConsumer(v -> cfg.vram.shadowMapMaxSize = v)
                 .build());
@@ -73,10 +74,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.vram.budgetTracking = v)
                 .build());
 
-        vram.addEntry(eb.startIntSlider(
+        vram.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.budgetWarningPercent"),
-                        cfg.vram.budgetWarningPercent, 50, 95)
+                        cfg.vram.budgetWarningPercent)
                 .setDefaultValue(80)
+                .setMin(50).setMax(95)
                 .setTooltip(Component.translatable("vramtweak.gui.option.budgetWarningPercent.tooltip"))
                 .setSaveConsumer(v -> cfg.vram.budgetWarningPercent = v)
                 .build());
@@ -92,10 +94,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.texture.animationLimit = v)
                 .build());
 
-        tex.addEntry(eb.startIntSlider(
+        tex.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.maxAnimationFrames"),
-                        cfg.texture.maxAnimationFrames, 4, 64)
+                        cfg.texture.maxAnimationFrames)
                 .setDefaultValue(32)
+                .setMin(4).setMax(64)
                 .setTooltip(Component.translatable("vramtweak.gui.option.maxAnimationFrames.tooltip"))
                 .setSaveConsumer(v -> cfg.texture.maxAnimationFrames = v)
                 .build());
@@ -108,10 +111,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.texture.atlasSizeLimit = v)
                 .build());
 
-        tex.addEntry(eb.startIntSlider(
+        tex.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.maxAtlasSize"),
-                        cfg.texture.maxAtlasSize, 1024, 16384)
+                        cfg.texture.maxAtlasSize)
                 .setDefaultValue(4096)
+                .setMin(1024).setMax(16384)
                 .setTooltip(Component.translatable("vramtweak.gui.option.maxAtlasSize.tooltip"))
                 .setSaveConsumer(v -> cfg.texture.maxAtlasSize = v)
                 .build());
@@ -127,26 +131,29 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.governor.enabled = v)
                 .build());
 
-        governor.addEntry(eb.startIntSlider(
+        governor.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.hysteresis"),
-                        cfg.governor.hysteresis, 2, 30)
+                        cfg.governor.hysteresis)
                 .setDefaultValue(10)
+                .setMin(2).setMax(30)
                 .setTooltip(Component.translatable("vramtweak.gui.option.hysteresis.tooltip"))
                 .setSaveConsumer(v -> cfg.governor.hysteresis = v)
                 .build());
 
-        governor.addEntry(eb.startIntSlider(
+        governor.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.minDistance"),
-                        cfg.governor.minDistance, 2, 16)
+                        cfg.governor.minDistance)
                 .setDefaultValue(4)
+                .setMin(2).setMax(16)
                 .setTooltip(Component.translatable("vramtweak.gui.option.minDistance.tooltip"))
                 .setSaveConsumer(v -> cfg.governor.minDistance = v)
                 .build());
 
-        governor.addEntry(eb.startIntSlider(
+        governor.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.cooldownTicks"),
-                        cfg.governor.cooldownTicks, 20, 600)
+                        cfg.governor.cooldownTicks)
                 .setDefaultValue(100)
+                .setMin(20).setMax(600)
                 .setTooltip(Component.translatable("vramtweak.gui.option.cooldownTicks.tooltip"))
                 .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
                 .build());
@@ -162,10 +169,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.particle.enabled = v)
                 .build());
 
-        particle.addEntry(eb.startIntSlider(
+        particle.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.maxParticles"),
-                        cfg.particle.maxParticles, 200, 10000)
+                        cfg.particle.maxParticles)
                 .setDefaultValue(2000)
+                .setMin(200).setMax(10000)
                 .setTooltip(Component.translatable("vramtweak.gui.option.maxParticles.tooltip"))
                 .setSaveConsumer(v -> cfg.particle.maxParticles = v)
                 .build());
@@ -201,15 +209,17 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.anchor = v)
                 .build());
 
-        hud.addEntry(eb.startIntSlider(
-                        Component.translatable("vramtweak.gui.option.offsetX"), cfg.hud.offsetX, 0, 200)
+        hud.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.offsetX"), cfg.hud.offsetX)
                 .setDefaultValue(4)
+                .setMin(0).setMax(200)
                 .setSaveConsumer(v -> cfg.hud.offsetX = v)
                 .build());
 
-        hud.addEntry(eb.startIntSlider(
-                        Component.translatable("vramtweak.gui.option.offsetY"), cfg.hud.offsetY, 0, 200)
+        hud.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.offsetY"), cfg.hud.offsetY)
                 .setDefaultValue(4)
+                .setMin(0).setMax(200)
                 .setSaveConsumer(v -> cfg.hud.offsetY = v)
                 .build());
 
@@ -280,10 +290,11 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.showBudget = v)
                 .build());
 
-        hud.addEntry(eb.startIntSlider(
+        hud.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.bgAlpha"),
-                        (int)(cfg.hud.bgAlpha * 100), 0, 80)
+                        (int)(cfg.hud.bgAlpha * 100))
                 .setDefaultValue(35)
+                .setMin(0).setMax(80)
                 .setTooltip(Component.translatable("vramtweak.gui.option.bgAlpha.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.bgAlpha = v / 100f)
                 .build());
