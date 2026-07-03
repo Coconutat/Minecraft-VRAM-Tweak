@@ -23,13 +23,6 @@ public class MixinMinecraftClient_Init {
             GPUDetector.initialize();
             DiagnosticLogger.run();
             VerificationLogger.logConfigSnapshot();
-
-            var cfg = VRAMTweak.getConfig();
-            if (!GPUDetector.shouldOptimize(cfg.vram.enabled)) {
-                VRAMTweak.LOGGER.info("GPU not detected and force-enable off. Optimizations skipped.");
-                return;
-            }
-
             VRAMOptimizer.initialize();
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("Init failed", e);

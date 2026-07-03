@@ -303,7 +303,7 @@ public class ClothConfigFactory {
         info.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.vramFree"),
                         GPUDetector.isReady()
-                                ? VRAMOptimizer.estimateTotalMB() + " MB"
+                                ? VRAMOptimizer.queryTotalVRAM() + " MB"
                                 : Component.translatable("vramtweak.gui.option.vramFree.pending").getString())
                 .setDefaultValue("")
                 .setTooltip(Component.translatable("vramtweak.gui.option.vramFree.tooltip"))

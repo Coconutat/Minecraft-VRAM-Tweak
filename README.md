@@ -107,9 +107,9 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 
 | GPU Vendor | Auto-Detect | VRAM Tracking |
 |-----------|------------|---------------|
-| AMD | ✅ `GL_VENDOR` → auto-enable | ✅ `GL_ATI_meminfo` (KB-precise) |
-| NVIDIA | Manual `vram.enabled=true` | ❌ No equivalent GL extension |
-| Intel | Manual `vram.enabled=true` | ❌ No equivalent GL extension |
+| AMD | ✅ `GL_VENDOR` | ✅ `GL_ATI_meminfo` (KB-precise) |
+| NVIDIA | ✅ `GL_VENDOR` | ✅ `GL_NVX_gpu_memory_info` (KB-precise) |
+| Intel | ✅ `GL_VENDOR` | ❌ No dedicated VRAM (iGPU uses system RAM) |
 
 ---
 
@@ -117,8 +117,8 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 
 1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 26.2
 2. Install [Sodium](https://modrinth.com/mod/sodium)
-3. Drop `vram-tweak-1.0.0.jar` into `mods/`
-4. Launch — AMD GPUs auto-enable. Others: set `vram.enabled: true` in config
+3. Drop `vram-tweak-x.x.x.jar` into `mods/`
+4. Launch — enable via Mod Menu → VRAM Tweak config
 
 ---
 
@@ -173,7 +173,7 @@ All settings live in `config/vram-tweak.json`. Use Cloth Config GUI (Mod Menu �
 git clone <repo-url>
 cd Minecraft-AMD-GPU-Tweak
 ./gradlew build
-# Output: build/libs/vram-tweak-1.0.0.jar
+# Output: build/libs/vram-tweak-x.x.x.jar
 ```
 
 Requires JDK 25+ and Gradle 9.6+.

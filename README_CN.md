@@ -102,9 +102,9 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 | GPU 厂商 | 自动检测 | VRAM 追踪 |
 |---------|---------|----------|
-| AMD | ✅ `GL_VENDOR` 自动启用 | ✅ `GL_ATI_meminfo`（KB 级精度） |
-| NVIDIA | 手动设置 `vram.enabled=true` | ❌ 无等效 GL 扩展 |
-| Intel | 手动设置 `vram.enabled=true` | ❌ 无等效 GL 扩展 |
+| AMD | ✅ `GL_VENDOR` | ✅ `GL_ATI_meminfo`（KB 级精度） |
+| NVIDIA | ✅ `GL_VENDOR` | ✅ `GL_NVX_gpu_memory_info`（KB 级精度） |
+| Intel | ✅ `GL_VENDOR` | ❌ 无独立显存（核显使用系统内存） |
 
 ---
 
@@ -112,8 +112,8 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 1. 安装 Minecraft 26.2 的 [Fabric](https://fabricmc.net/use/)
 2. 安装 [Sodium](https://modrinth.com/mod/sodium)
-3. 将 `vram-tweak-1.0.0.jar` 放入 `mods/` 文件夹
-4. 启动游戏 — AMD 显卡自动启用。其他显卡：在配置中设置 `vram.enabled: true`
+3. 将 `vram-tweak-x.x.x.jar` 放入 `mods/` 文件夹
+4. 启动游戏 — 在 Mod Menu → VRAM Tweak 中手动启用
 
 ---
 
@@ -168,7 +168,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 git clone <repo-url>
 cd Minecraft-AMD-GPU-Tweak
 ./gradlew build
-# 输出: build/libs/vram-tweak-1.0.0.jar
+# 输出: build/libs/vram-tweak-x.x.x.jar
 ```
 
 需要 JDK 25+ 和 Gradle 9.6+。

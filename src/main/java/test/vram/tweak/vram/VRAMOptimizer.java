@@ -20,6 +20,9 @@ import test.vram.tweak.gpu.GPUDetector;
 public class VRAMOptimizer {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/vram");
     private static final int GL_TEXTURE_FREE_MEMORY_ATI = 0x87FB;
+    // NVIDIA NVX_gpu_memory_info
+    private static final int GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX = 0x9047;
+    private static final int GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX = 0x9049;
 
     private static boolean enabled;
     private static boolean formatDownscale;
@@ -63,19 +66,54 @@ public class VRAMOptimizer {
 
     public static boolean isEnabled() { return enabled; }
 
-    /** Query VRAM free via GL_ATI_meminfo. Returns KB free, or -1 on failure. Public for metrics. */
+    /** Query VRAM free. Returns KB free, or -1 on failure. */
     public static long queryFreeVRAM() {
+        return switch (GPUDetector.getGPU()) {
+            case AMD -> queryFreeVRAM_AMD();
+            case NVIDIA -> queryFreeVRAM_NVIDIA();
+            default -> -1;
+        };
+    }
+
+    private static long queryFreeVRAM_AMD() {
         try {
             int[] result = new int[4];
             GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-            return (long) result[0] * 1024L; // KB 鈫?bytes
-        } catch (Exception e) {
-            return -1;
-        }
+            return (long) result[0] * 1024L;
+        } catch (Exception e) { return -1; }
     }
 
-    /** Estimate total VRAM. Rough: free / ((100-budget%) / 100). */
+    private static long queryFreeVRAM_NVIDIA() {
+        try {
+            int[] result = new int[1];
+            GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
+            return (long) result[0]; // NVX returns KB directly
+        } catch (Exception e) { return -1; }
+    }
+
+    /** GPU-aware total VRAM in MB. */
+    public static long queryTotalVRAM() {
+        try {
+            return switch (GPUDetector.getGPU()) {
+                case AMD -> {
+                    long free = queryFreeVRAM_AMD();
+                    yield free > 0 ? free / 1024 / 1024 : 0;
+                }
+                case NVIDIA -> {
+                    int[] result = new int[1];
+                    GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
+                    long kb = (long) result[0];
+                    yield kb / 1024; // KB → MB
+                }
+                default -> 0L;
+            };
+        } catch (Exception e) { return 0; }
+    }
+
+    /** Estimate total VRAM. Deprecated — use queryTotalVRAM(). */
     public static long estimateTotalMB() {
+        long total = queryTotalVRAM();
+        if (total > 0) return total;
         long free = queryFreeVRAM();
         if (free <= 0) return 0;
         return free / 1024 / 1024;
@@ -86,10 +124,9 @@ public class VRAMOptimizer {
         if (!enabled || !budgetTracking) return;
 
         long freeBytes = queryFreeVRAM();
-        if (freeBytes <= 0) return;
+        long totalMB = queryTotalVRAM();
+        if (freeBytes <= 0 || totalMB <= 0) return;
 
-        // rough: GPU has ~8176MB on RX 6650 XT. used = total - free
-        long totalMB = 8176;
         long freeMB = freeBytes / 1024 / 1024;
         long usedMB = totalMB - freeMB;
         long thresholdMB = totalMB * budgetPercent / 100;
