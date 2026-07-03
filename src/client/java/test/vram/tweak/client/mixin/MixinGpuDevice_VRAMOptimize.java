@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Supplier;
 
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.compression.S3TCFlag;
 import test.vram.tweak.compression.TextureCategory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
@@ -177,9 +178,7 @@ public class MixinGpuDevice_VRAMOptimize {
                 if (cat != null && cat.isCompressible(cfg)
                         && TextureCategory.meetsSizeThreshold(width, height)
                         && "RGBA8".equals(format.name())) {
-                    MixinGlCommandEncoder_S3TC.S3TC_FLAG.set(true);
-                    MixinGlCommandEncoder_S3TC.S3TC_WIDTH.set(width);
-                    MixinGlCommandEncoder_S3TC.S3TC_HEIGHT.set(height);
+                    S3TCFlag.set(true, width, height);
                 }
             }
         } catch (Exception e) {

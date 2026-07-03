@@ -15,6 +15,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import test.vram.tweak.VRAMTweak;
 import test.vram.tweak.client.mixin.accessor.GlTextureAccessor;
 import test.vram.tweak.compression.S3TCDxtEncoder;
+import test.vram.tweak.compression.S3TCFlag;
 import test.vram.tweak.compression.TextureCategory;
 import test.vram.tweak.config.VRAMConfig;
 
@@ -22,19 +23,13 @@ import test.vram.tweak.config.VRAMConfig;
  * Intercept CommandEncoder.writeToTexture(GpuTexture, NativeImage) for S3TC compression.
  *
  * Flow:
- * 1. MixinGpuDevice_VRAMOptimize classifies texture at createTexture time, stores in S3TC_FLAG
- * 2. This mixin checks S3TC_FLAG at writeToTexture time
+ * 1. MixinGpuDevice_VRAMOptimize classifies texture at createTexture time, stores flags via setFlag()
+ * 2. This mixin checks flag at writeToTexture time
  * 3. If flagged: compress NativeImage to DXT, re-upload with glCompressedTexImage2D
  * 4. Cancel original writeToTexture
  */
 @Mixin(targets = "com.mojang.blaze3d.opengl.GlCommandEncoder")
 public class MixinGlCommandEncoder_S3TC {
-
-    // ThreadLocal flag set by MixinGpuDevice_VRAMOptimize
-    public static final ThreadLocal<Boolean> S3TC_FLAG = new ThreadLocal<>();
-    public static final ThreadLocal<Integer> S3TC_WIDTH = new ThreadLocal<>();
-    public static final ThreadLocal<Integer> S3TC_HEIGHT = new ThreadLocal<>();
-    public static final ThreadLocal<Boolean> S3TC_HAS_ALPHA = new ThreadLocal<>();
 
     private static final int GL_COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
     private static final int GL_COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
@@ -42,9 +37,8 @@ public class MixinGlCommandEncoder_S3TC {
     @Inject(method = "writeToTexture(Lcom/mojang/blaze3d/textures/GpuTexture;Lcom/mojang/blaze3d/platform/NativeImage;)V",
             at = @At("HEAD"), cancellable = true)
     private void onWriteToTexture(GpuTexture texture, NativeImage image, CallbackInfo ci) {
-        Boolean flagged = S3TC_FLAG.get();
-        if (!Boolean.TRUE.equals(flagged)) return;
-        S3TC_FLAG.remove();
+        if (!S3TCFlag.isSet()) return;
+        S3TCFlag.clear();
 
         try {
             int width = image.getWidth();

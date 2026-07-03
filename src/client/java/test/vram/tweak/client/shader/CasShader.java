@@ -60,7 +60,8 @@ public class CasShader {
                 vec3 i = texture(uTexture, tc + vec2(texelSize.x, texelSize.y)).rgb;
 
                 // CAS algorithm
-                float sharpness = uSharpness; // 0.0 = off, 1.0 = max
+                // sharpness 0.0-4.0: 0.8=subtle, 2.0=visible, 4.0=aggressive
+                float sharpness = uSharpness;
 
                 // Min and max of neighborhood
                 vec3 minRGB = min(min(min(a, b), min(c, d)), min(min(e, f), min(g, h)));
@@ -68,18 +69,16 @@ public class CasShader {
                 vec3 maxRGB = max(max(max(a, b), max(c, d)), max(max(e, f), max(g, h)));
                 maxRGB = max(maxRGB, i);
 
-                // Local contrast
-                vec3 contrast = maxRGB - minRGB;
+                // Soft filter (Gaussian-like blur edge)
+                vec3 softFilter = (a + c + f + h + d + g + b + i) * 0.125 + e * 0.25;
 
-                // Soft filter
-                vec3 softFilter = (a + b + c + d + e + f + g + h + i) / 9.0;
+                // CAS: pull center away from soft filter, scaled by local contrast
+                vec3 detail = e - softFilter;
+                vec3 contrast = (maxRGB - minRGB) + 0.001;
+                vec3 sharpened = e + detail * sharpness * clamp(1.0 - abs(detail) / contrast, 0.0, 1.0);
 
-                // CAS: pull away from soft filter based on local contrast
-                // e + sharpness * (e - softFilter) clamped by min/max
-                vec3 sharpened = e + sharpness * clamp(e - softFilter, -contrast, contrast);
-
-                // Clamp to local min/max (anti-ringing)
-                sharpened = clamp(sharpened, minRGB, maxRGB);
+                // Anti-ringing: clamp to local min/max (softer)
+                sharpened = mix(sharpened, clamp(sharpened, minRGB, maxRGB), 0.5 + 0.5 * clamp(sharpness * 0.5, 0.0, 1.0));
 
                 fragColor = vec4(sharpened, 1.0);
             }
@@ -149,8 +148,8 @@ public class CasShader {
     }
 
     /**
-     * Apply CAS sharpening to currently bound framebuffer's color attachment.
-     * Call after world rendering, before HUD.
+     * Apply CAS sharpening to the main framebuffer color texture.
+     * Renders fullscreen quad to default framebuffer (0).
      *
      * @param fbColorTex GL texture ID of the framebuffer color attachment
      * @param width      viewport width
@@ -163,6 +162,10 @@ public class CasShader {
 
         try {
             RenderSystem.assertOnRenderThread();
+
+            // ponytail: explicitly render to default FB to avoid read-write conflict
+            // (main FBO's color attachment != default FB → safe to read from it)
+            GL32C.glBindFramebuffer(GL32C.GL_FRAMEBUFFER, 0);
 
             GL32C.glUseProgram(programId);
             GL32C.glUniform1f(sharpnessLoc, cfg.sharpness);
