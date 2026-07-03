@@ -12,6 +12,8 @@ import java.nio.file.StandardOpenOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import test.vram.tweak.compression.S3TCConfig;
+
 /**
  * Root config. Serialized to config/vram-tweak.json.
  */
@@ -40,6 +42,12 @@ public class VRAMConfig {
 
     @SerializedName("particle")
     public ParticleSection particle = new ParticleSection();
+
+    @SerializedName("s3tc")
+    public S3TCConfig s3tc = new S3TCConfig();
+
+    @SerializedName("cas")
+    public CASSection cas = new CASSection();
 
     // ---- singleton ----
 
@@ -220,5 +228,15 @@ public class VRAMConfig {
 
         @SerializedName("maxParticles")
         public int maxParticles = 2000;
+    }
+
+    // ---- CAS section ----
+
+    public static class CASSection {
+        @SerializedName("enabled")
+        public boolean enabled = false;
+
+        @SerializedName("sharpness")
+        public float sharpness = 0.8f;
     }
 }
