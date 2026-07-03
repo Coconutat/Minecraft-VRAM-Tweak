@@ -22,33 +22,49 @@ public class MixinCommandEncoder_S3TC {
     private static final int GL_COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
     private static final int GL_COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
 
-    // ponytail: 26.2 CommandEncoder (not GlCommandEncoder) — same signature as 1.21.11.
-    //           CommandEncoder wraps GlCommandEncoder backend; Minecraft calls this high-level method.
+    // ---- Overload 1: full-image write (1.21.11 compat, also used by some 26.2 paths) ----
+
     @Inject(method = "writeToTexture(Lcom/mojang/blaze3d/textures/GpuTexture;Lcom/mojang/blaze3d/platform/NativeImage;)V",
             at = @At("HEAD"), cancellable = true)
     private void onWriteToTexture(GpuTexture texture, NativeImage image, CallbackInfo ci) {
         if (!S3TCFlag.isSet()) return;
         String label = S3TCFlag.getLabel();
         S3TCFlag.clear();
+        compressAndUpload(texture, image, label, 0, 0, image.getWidth(), image.getHeight(), ci);
+    }
+
+    // ---- Overload 2: 4-int overload (xOffset, yOffset, layer, mipLevel) ----
+    // ponytail: 2-arg calls this with (0,0,0,0). Four ints are metadata, NOT w/h/x/y.
+    //           NativeImage carries its own dimensions — use those. Same logic as overload 1.
+
+    @Inject(method = "writeToTexture(Lcom/mojang/blaze3d/textures/GpuTexture;Lcom/mojang/blaze3d/platform/NativeImage;IIII)V",
+            at = @At("HEAD"), cancellable = true)
+    private void onWriteToTextureRegion(GpuTexture texture, NativeImage image,
+            int xOffset, int yOffset, int layer, int mipLevel, CallbackInfo ci) {
+        if (!S3TCFlag.isSet()) return;
+        String label = S3TCFlag.getLabel();
+        S3TCFlag.clear();
+        // Same as overload 1 — use full image dimensions, 4 ints are metadata
+        compressAndUpload(texture, image, label, 0, 0, image.getWidth(), image.getHeight(), ci);
+    }
+
+    // ---- Shared compression logic ----
+
+    private void compressAndUpload(GpuTexture texture, NativeImage image, String label,
+            int srcX, int srcY, int w, int h, CallbackInfo ci) {
         try {
-            int width = image.getWidth();
-            int height = image.getHeight();
-            if (width < 4 || height < 4 || width % 4 != 0 || height % 4 != 0) {
-                VRAMTweak.LOGGER.warn("[S3TC] {} {}×{} not multiple of 4, skipping", label, width, height);
-                VerificationLogger.logS3TCSkip(label, width, height, "non-4-aligned");
-                return;
-            }
-            int[] pixels = new int[width * height];
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    pixels[y * width + x] = image.getPixel(x, y);
+            // Read pixel region
+            int[] pixels = new int[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    pixels[y * w + x] = image.getPixel(srcX + x, srcY + y);
 
             boolean hasAlpha = S3TCDxtEncoder.hasAlpha(pixels);
             byte[] compressed;
             int glFormat;
             String fmt;
-            if (hasAlpha) { compressed = S3TCDxtEncoder.compressBC3(pixels, width, height); glFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; fmt = "BC3"; }
-            else { compressed = S3TCDxtEncoder.compressBC1(pixels, width, height); glFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT; fmt = "BC1"; }
+            if (hasAlpha) { compressed = S3TCDxtEncoder.compressBC3(pixels, w, h); glFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT; fmt = "BC3"; }
+            else { compressed = S3TCDxtEncoder.compressBC1(pixels, w, h); glFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT; fmt = "BC1"; }
 
             int glId = ((GlTextureAccessor) texture).getId();
             int dataSize = compressed.length;
@@ -56,15 +72,21 @@ public class MixinCommandEncoder_S3TC {
             try {
                 buf.put(compressed); buf.flip();
                 GL32C.glBindTexture(GL32C.GL_TEXTURE_2D, glId);
-                GL32C.nglCompressedTexImage2D(GL32C.GL_TEXTURE_2D, 0, glFormat, width, height, 0, dataSize, MemoryUtil.memAddress(buf));
+                if (srcX == 0 && srcY == 0 && w >= image.getWidth() && h >= image.getHeight()) {
+                    // Full-image write: replace entire texture
+                    GL32C.nglCompressedTexImage2D(GL32C.GL_TEXTURE_2D, 0, glFormat, w, h, 0, dataSize, MemoryUtil.memAddress(buf));
+                } else {
+                    // Sub-region write
+                    GL32C.nglCompressedTexSubImage2D(GL32C.GL_TEXTURE_2D, 0, srcX, srcY, w, h, glFormat, dataSize, MemoryUtil.memAddress(buf));
+                }
                 GL32C.glBindTexture(GL32C.GL_TEXTURE_2D, 0);
             } finally { MemoryUtil.memFree(buf); }
 
             ci.cancel();
-            int origBytes = width * height * 4;
+            int origBytes = w * h * 4;
             VRAMTweak.LOGGER.info("[S3TC] {} {}×{} {} {}→{} bytes ~{}x",
-                    label, width, height, fmt, origBytes, dataSize, origBytes/Math.max(dataSize,1));
-            VerificationLogger.logS3TCCompress(label, width, height, fmt, origBytes, dataSize);
+                    label, w, h, fmt, origBytes, dataSize, origBytes / Math.max(dataSize, 1));
+            VerificationLogger.logS3TCCompress(label, w, h, fmt, origBytes, dataSize);
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("[S3TC] {} compression failed", label, e);
             VerificationLogger.logS3TCSkip(label, 0, 0, "error: " + e.getMessage());
