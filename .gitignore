@@ -39,6 +39,9 @@ replay_*.log
 *.hprof
 *.jfr
 
+# tmp
+tmp
+
 # reference mods
 reference_mods
 
