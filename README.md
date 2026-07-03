@@ -26,14 +26,14 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin
 
 | Feature | How It Works | Triggered In Testing |
 |---------|-------------|---------------------|
-| **Atlas Size Cap** | `GpuDevice.createTexture()` width/height clamped to `maxAtlasSize` | ✅ 12× (16384→4096 px blocks.png) |
-| **Depth Downscale** | D32_FLOAT → D16_UNORM shadow maps | ✅ 10× per session |
-| **Format Downscale** | RGBA16F → RGBA8 color buffers (for heavy shader packs) | ⚠️ The current device test has not been triggered.Awaiting trigger, maybe one day we will need this. |
-| **Shadow Map Cap** | Clamps shadow map resolution to `shadowMapMaxSize` | ⚠️ Vanilla ≤1024, already within limit |
-| **Animation Limit** | Caps animated texture frame count | ✅ Stable |
+| **Atlas Size Cap** | `GpuDevice.createTexture()` W/H clamped to `maxAtlasSize` | ✅ 26 caps/session (blocks.png 16384→4096) |
+| **Depth Downscale** | D32_FLOAT → D16_UNORM shadow maps | ✅ 10×/session, ~50% VRAM per shadow map |
+| **Format Downscale** | RGBA16F → RGBA8 color buffers | ⚠️ Requires high-precision pack/shader |
+| **Shadow Map Cap** | Clamp shadow map resolution ≤ `shadowMapMaxSize` | ⚠️ Vanilla ≤1024, within limit |
+| **Animation Limit** | Cap animated texture frame count | ✅ Stable |
 | **Particle Limit** | Global particle count safety net | ✅ Experimental |
-| **VRAM Governor** | Dynamically lowers render distance under VRAM pressure, restores when safe | ✅ Experimental |
-| **Budget Tracking** | Per-frame VRAM polling + configurable warning threshold | ✅ Stable |
+| **VRAM Governor** | Auto-lower render distance under VRAM pressure | ✅ Experimental |
+| **Budget Tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
 
 > ⚠️ **Important**: Toggling the mod ON/OFF via GUI takes effect immediately for *new* textures only. Textures already loaded into VRAM stay at their current size until you **restart the game**. If you disable the mod and VRAM usage doesn't increase, this is expected — restart to reload textures at full resolution.
 
@@ -71,25 +71,33 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 
 ---
 
-## Real-World Impact *(AMD R5 5600 + 32GB DDR4 3200 CL16 + AMD RX 6650 XT 8GB, MC 26.2 + Sodium + Iris + other mods)*
+## Real-World Impact
 
-### Test Resource Pack & Shaders
-- Resource Pack: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) — Paid pack (trial version available)
-- Shaders: [Spring v2](https://modrinth.com/shader/spring-shaders) — Publicly released by the author
-***
-### Before
-| Metric | Value |
-|--------|-------|
-| VRAM Peak | 7820 / 8192 MB (95.4%) |
-***
-### After
-| Metric | Value |
-|--------|-------|
-| VRAM Peak | 4728 / 8192 MB (57.7%) |
-| Atlas Caps Triggered | 12 per session |
-| Depth Downscales | 10 per session |
-| Largest Atlas Reduction | 16384 → 4096 px (blocks.png) |
-| Budget Warnings | 0 (never exceeded 80%) |
+**Hardware:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
+**Software:** MC 26.2 + Sodium + Iris + resource pack + shaders
+
+### Before vs After
+
+| Metric | Before | After | Savings |
+|--------|--------|-------|---------|
+| VRAM Peak | 7820 / 8192 MB (95.4%) | **4728 / 8192 MB (57.7%)** | ~3 GB |
+| Stability | Stuttering near VRAM limit | 0 budget warnings | Smooth & playable |
+
+### Atlas Caps
+
+**26 oversize caps** in one session:
+
+| Atlas | Original | Capped | Savings |
+|-------|---------|--------|---------|
+| `blocks.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
+
+> **Total:** Atlas caps + 10 depth downscales → ~**3 GB VRAM** saved. Usage dropped from 95.4% to 57.7%.
+
+### Test Pack & Shaders
+- Resource Pack: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) (paid, trial available)
+- Shaders: [Spring v2](https://modrinth.com/shader/spring-shaders) (public)
 
 ---
 
@@ -100,8 +108,12 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 | **Sodium** | Hard | 0.9.0+ |
 | Iris | Soft | 1.11+ *(shader compatibility)* |
 | Cloth Config | Soft | 26.2+ *(GUI)* |
+| ModMenu | Soft | 20.0+ *(config button)* |
 
-**Platform**: Windows, Linux
+**Platform:** Windows, Linux  
+**Java:** 25+
+
+> **Compatibility:** Tested with Iris + C2ME + Lithium + resource packs + shaders.
 
 ---
 

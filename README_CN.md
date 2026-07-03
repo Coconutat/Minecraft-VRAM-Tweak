@@ -21,13 +21,13 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 | 功能 | 原理 | 实测触发情况 |
 |------|------|-------------|
-| **纹理图集上限** | 限制 `GpuDevice.createTexture()` 宽高 ≤ `maxAtlasSize` | ✅ 单会话 12 次（blocks.png 16384→4096 px） |
-| **深度缓冲降精度** | D32_FLOAT → D16_UNORM 阴影贴图 | ✅ 单会话 10 次 |
-| **颜色缓冲降精度** | RGBA16F → RGBA8（适配重型光影包） | ⚠️ 当前测试环境未触发，等未来触发，也许有一天我们需要它 |
+| **纹理图集上限** | 限制 `GpuDevice.createTexture()` 宽高 ≤ `maxAtlasSize` | ✅ 单会话 26 次截断（blocks.png 16384→4096） |
+| **深度缓冲降精度** | D32_FLOAT → D16_UNORM 阴影贴图 | ✅ 单会话 10 次，节省 ~50%/ShadowMap |
+| **颜色缓冲降精度** | RGBA16F → RGBA8（适配重型光影包） | ⚠️ 需高精度材质包/光影触发 |
 | **阴影贴图上限** | 限制阴影贴图分辨率 ≤ `shadowMapMaxSize` | ⚠️ 原版 ≤1024，已在限制内 |
 | **动画帧数限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
 | **粒子数量上限** | 全局粒子计数安全网 | ✅ 实验性 |
-| **VRAM 调速器** | 显存紧张时自动降低渲染距离，恢复后逐步还原 | ✅ 实验性 |
+| **VRAM 调速器** | 显存紧张时自动降低渲染距离 | ✅ 实验性 |
 | **预算追踪** | 每帧轮询 VRAM 用量 + 可配置告警阈值 | ✅ 稳定 |
 
 > ⚠️ **重要提示**：在 GUI 中开关 MOD 后，仅对**新创建的纹理**立即生效。已加载到显存中的纹理保持当前大小，需**重启游戏**才能重新以全分辨率加载。如果关闭 MOD 后显存占用没有上升，这是正常现象——重启游戏即可加载原始尺寸纹理。
@@ -66,25 +66,33 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 ---
 
-## 实测效果 *(AMD R5 5600 + 32GB DDR4 3200 CL16 + AMD RX 6650 XT 8GB, MC 26.2 + Sodium + Iris + 其它mods)*
+## 实测效果
+
+**测试环境：** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
+**MC 26.2 + Fabric 0.19.3 + Sodium + Iris + 材质包/光影**  
+
+### 开启前后对比
+
+| 指标 | 开启前 | 开启后 | 节省 |
+|------|--------|--------|------|
+| VRAM 峰值 | 7820 / 8192 MB (95.4%) | **4728 / 8192 MB (57.7%)** | ~3 GB |
+| 稳定性 | 显存接近上限，频繁卡顿 | 预算告警 0 次 | 流畅可玩 |
+
+### 纹理图集截断记录
+
+单次游戏会话中，**26 次超限截断**：
+
+| 图集 | 原始尺寸 | 截断后 | 节省 |
+|------|---------|--------|------|
+| `blocks.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
+| `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
+
+> **总计：** 纹理图集 + 深度降精度（10 次），理论节省约 **3 GB 显存**，实测 VRAM 使用率从 95.4% 降至 57.7%。
 
 ### 测试材质包和光影
-材质包:[EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) 非免费材质包，但是有试用版  
-光影:[春v2](https://modrinth.com/shader/spring-shaders) 作者已经公开发布
-***
-### 开启前
-| 指标 | 数值 |
-|------|------|
-| VRAM 峰值 | 7820 / 8192 MB (95.4%) |
-***
-### 开启后
-| 指标 | 数值 |
-|------|------|
-| VRAM 峰值 | 4728 / 8192 MB (57.7%) |
-| Atlas 截断触发 | 单会话 12 次 |
-| 深度降精度触发 | 单会话 10 次 |
-| 最大图集缩减 | 16384 → 4096 px (blocks.png) |
-| 预算告警 | 0 次（从未超过 80%） |
+材质包: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/)（非免费，有试用版）  
+光影: [春v2](https://modrinth.com/shader/spring-shaders)（公开发布）
 
 ---
 
@@ -95,8 +103,12 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | **Sodium** | 硬依赖 | 0.9.0+ |
 | Iris | 软依赖 | 1.11+ *（光影兼容）* |
 | Cloth Config | 软依赖 | 26.2+ *（GUI）* |
+| ModMenu | 软依赖 | 20.0+ *（配置按钮）* |
 
-**平台**：Windows、Linux
+**平台**：Windows、Linux  
+**Java**：25+
+
+> **兼容性：** 已在 Iris + C2ME + Lithium + 材质包/光影环境中稳定运行。
 
 ---
 
@@ -197,6 +209,13 @@ Mixin 注入层
 ├── VerificationLogger     → 优化前后审计追踪
 ├── GPUDetector            → 厂商检测 + VRAM 查询
 └── VRAMConfig             → 基于 Gson 的 6 段式配置
+
+客户端模块 (src/client)
+├── VramTweakHud           → 单例叠加层渲染器
+├── VramTweakCommand       → /vramtweak CLI
+├── ClothConfigFactory     → GUI 集成
+└── ModMenuIntegration     → Mod Menu 入口
+```
 
 客户端模块 (src/client)
 ├── VramTweakHud           → 单例叠加层渲染器
