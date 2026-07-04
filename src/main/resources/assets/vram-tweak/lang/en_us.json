@@ -41,18 +41,6 @@
   "vramtweak.gui.option.maxParticles": "Max Particles",
   "vramtweak.gui.option.maxParticles.tooltip": "Global simultaneous particle limit (200–10000).\n▲ Higher = richer particle effects, more GPU fill-rate pressure.\n▼ Lower = reduces GPU load, particle-heavy scenes stay smooth.\nDefault 2000.",
 
-  "vramtweak.gui.category.s3tc": "🗜 S3TC Compression (Experimental)",
-  "vramtweak.gui.option.s3tc.enabled": "Enable S3TC Compression",
-  "vramtweak.gui.option.s3tc.enabled.tooltip": "⚡ Compresses textures to BC1/BC3 (DXT) on the GPU.\n▲ Saves 4–8x VRAM on compressed textures.\n▼ Slightly reduced image quality, startup overhead.\n⚠ PBR normal/specular atlases excluded (would break PBR).\nCompression happens at load time, one-time cost.",
-  "vramtweak.gui.option.s3tc.blockAtlas": "Compress Block Atlas",
-  "vramtweak.gui.option.s3tc.blockAtlas.tooltip": "Compress block/item texture atlases (largest VRAM consumers).\nBC1 (no alpha) or BC3 (with alpha) depending on content.\n⚠ PBR atlas (blocks_n.png/blocks_s.png) excluded —\n  normal/specular maps incompatible with DXT compression.\nExpected VRAM savings: ~75% on atlas textures.",
-  "vramtweak.gui.option.s3tc.entityTextures": "Compress Entity Textures",
-  "vramtweak.gui.option.s3tc.entityTextures.tooltip": "Compress entity/mob textures.\nModerate VRAM savings, minor quality impact.\n⚠ Entity PBR textures excluded.",
-  "vramtweak.gui.option.s3tc.guiTextures": "Compress GUI Textures",
-  "vramtweak.gui.option.s3tc.guiTextures.tooltip": "⚠️ Compress GUI textures. May cause visible block artifacts on UI edges. Use with caution.",
-  "vramtweak.gui.option.s3tc.other": "Compress Uncategorized Textures",
-  "vramtweak.gui.option.s3tc.other.tooltip": "⚠️ Compress all other textures not in known categories.\nAggressive — may affect unexpected textures.\n⚠ PBR textures in other categories excluded.",
-
   "vramtweak.gui.category.cas": "🔪 FSR CAS Sharpening",
   "vramtweak.gui.option.cas.enabled": "Enable CAS Sharpening",
   "vramtweak.gui.option.cas.enabled.tooltip": "AMD FidelityFX Contrast Adaptive Sharpening.\nApplied after world render, before HUD.\nRecovers detail lost to resolution scaling or compression.\nZero VRAM cost, negligible GPU overhead.",

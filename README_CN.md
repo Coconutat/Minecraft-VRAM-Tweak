@@ -25,7 +25,6 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 | **颜色缓冲降精度** | 高精度 → RGBA8 | ⚠️ 1.21.11 仅有 RGBA8，功能休眠 |
 | **深度缓冲降精度** | 高精度深度 → 低精度 | ⚠️ 1.21.11 仅有 DEPTH32，功能休眠 |
 | **阴影贴图上限** | 限制阴影贴图分辨率 ≤ `shadowMapMaxSize` | ⚠️ 原版 ≤1024，已在限制内 |
-| **S3TC 纹理压缩** | BC1/BC3 DXT 压缩后上传 GPU | 🆕 实验性 — 节省 4-8x 显存 |
 | **FSR CAS 锐化** | AMD 对比度自适应全屏锐化 | 🆕 实验性 — 补偿压缩模糊 |
 | **动画帧数限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
 | **粒子数量上限** | 全局粒子计数安全网 | ✅ 实验性 |
@@ -167,13 +166,6 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
     "enabled": false,
     "maxParticles": 2000
   },
-  "s3tc": {                         // 🆕 S3TC 纹理压缩 (实验)
-    "enabled": false,
-    "compressBlockAtlas": true,      // 压缩方块图集
-    "compressEntityTextures": false, // 压缩实体纹理
-    "compressGuiTextures": false,    // 压缩 GUI 纹理
-    "compressOther": false           // 压缩未分类纹理
-  },
   "cas": {                          // 🆕 FSR CAS 锐化
     "enabled": false,
     "sharpness": 0.8                // 锐化强度 0.0-1.0
@@ -210,8 +202,7 @@ cd Minecraft-AMD-GPU-Tweak
 
 ```
 Mixin 注入层
-├── MixinGpuDevice_VRAMOptimize   → createTexture() 格式/尺寸/S3TC flag
-├── MixinGlCommandEncoder_S3TC   → writeToTexture() DXT 压缩上传 (🆕)
+├── MixinGpuDevice_VRAMOptimize   → createTexture() 格式/尺寸上限
 ├── MixinGameRenderer_Metrics    → 逐帧统计 + VRAM 轮询
 ├── MixinGameRenderer_CAS        → FSR CAS 锐化 pass (🆕)
 ├── MixinSpriteContents_Animation → 动画帧截断
@@ -223,8 +214,6 @@ Mixin 注入层
 核心模块 (src/main)
 ├── VRAMOptimizer          → 格式/尺寸策略引擎
 ├── VRAMGovernor           → 动态渲染距离控制器
-├── S3TCDxtEncoder         → 纯 Java BC1/BC3 编码器 (🆕)
-├── TextureCategory        → label/format/size 分类器 (🆕)
 ├── MetricsEngine          → 环形缓冲区性能采样
 ├── VramFrameCounter       → 滑动窗口 FPS + 百分位低帧率
 ├── VerificationLogger     → 优化前后审计追踪
