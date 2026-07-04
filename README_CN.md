@@ -129,10 +129,12 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 ## 快速开始
 
-1. 安装 Minecraft 1.21.11 的 [Fabric](https://fabricmc.net/use/)
-2. 安装 [Sodium](https://modrinth.com/mod/sodium)
-3. 将 `vram-tweak-x.x.x.jar` 放入 `mods/` 文件夹
-4. 启动游戏 — 在 Mod Menu → VRAM Tweak 中手动启用
+1. 安装适用于 Minecraft 26.2 的 [Fabric](https://fabricmc.net/use/)
+2. 安装 [Sodium](https://modrinth.com/mod/sodium) ```对于 26.2 版本，如果您安装了 Iris，则 Sodium 的版本必须为 0.9.0，因为 Iris 与高于 0.9.0 的版本不兼容。对于 1.21.11 版本，Sodium 必须为 0.8.13-beta-1 版本，因为 Iris 与高于 0.8.13-beta-1 的版本不兼容。如果您不使用 Iris，则可能没有此限制。
+3. 安装 [Cloth Config API](https://modrinth.com/mod/cloth-config)
+4. 安装 [Iris](https://modrinth.com/mod/iris)（此步骤为可选）
+5. 将 `vram-tweak-x.x.x.jar` 放入 `mods/` 目录
+6. 启动游戏 — 打开 Mod 菜单 → VRAM Tweak → 启用功能
 
 ---
 

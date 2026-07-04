@@ -108,10 +108,12 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 ## Quick Start
 
-1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 1.21.11 or 26.2
-2. Install [Sodium](https://modrinth.com/mod/sodium)
-3. Drop `vram-tweak-x.x.x.jar` into `mods/`
-4. Launch — enable in Mod Menu → VRAM Tweak
+1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 26.2
+2. Install [Sodium](https://modrinth.com/mod/sodium) ```For 26.2 , If you install Iris, Sodium must be version 0.9.0, because Iris is not compatible with versions higher than 0.9.0.  For 1.21.11 , Sodium must be version 0.8.13-beta-1, because Iris is not compatible with versions higher than 0.8.13-beta-1.If you don't use Iris, there may be no restrictions.```
+3. Install [Cloth Config API](https://modrinth.com/mod/cloth-config)
+4. Install [Iris](https://modrinth.com/mod/iris) `this is optional`
+5. Drop `vram-tweak-x.x.x.jar` into `mods/`
+6. Launch — Open Mod Menu → VRAM Tweak → Enable features
 
 ---
 
