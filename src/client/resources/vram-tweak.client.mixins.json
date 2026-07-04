@@ -8,7 +8,6 @@
 		"accessor.GameRendererAccessor",
 		"MixinMinecraftClient_Init",
 		"MixinGpuDevice_VRAMOptimize",
-		"MixinCommandEncoder_S3TC",
 		"MixinGameRenderer_Metrics",
 		"MixinGameRenderer_CAS",
 		"MixinOptions_RenderDistance",

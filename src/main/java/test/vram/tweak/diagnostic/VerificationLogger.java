@@ -45,9 +45,6 @@ public class VerificationLogger {
     private static final AtomicInteger budgetWarnings = new AtomicInteger();
     private static final AtomicInteger atlasTracked = new AtomicInteger();
     private static final AtomicInteger atlasCaps = new AtomicInteger();
-    private static final AtomicInteger s3tcCompresses = new AtomicInteger();
-    private static final AtomicInteger s3tcSkips = new AtomicInteger();
-    private static final AtomicInteger s3tcBytesSaved = new AtomicInteger();
     private static final AtomicInteger casFrames = new AtomicInteger();
 
     private static boolean enabled() {
@@ -97,11 +94,6 @@ public class VerificationLogger {
                 + " cooldown=" + c.governor.cooldownTicks + "t");
         writeln("  Particle: enabled=" + c.particle.enabled
                 + " max=" + c.particle.maxParticles);
-        writeln("  S3TC: enabled=" + c.s3tc.enabled
-                + " blockAtlas=" + c.s3tc.compressBlockAtlas
-                + " entities=" + c.s3tc.compressEntityTextures
-                + " gui=" + c.s3tc.compressGuiTextures
-                + " other=" + c.s3tc.compressOther);
         writeln("  CAS: enabled=" + c.cas.enabled
                 + " sharpness=" + c.cas.sharpness);
         writeln("");
@@ -214,26 +206,6 @@ public class VerificationLogger {
         }
     }
 
-    // ---- S3TC compression ----
-
-    public static void logS3TCCompress(String label, int w, int h, String format, int origBytes, int compBytes) {
-        if (!enabled()) return;
-        int n = s3tcCompresses.incrementAndGet();
-        s3tcBytesSaved.addAndGet(origBytes - compBytes);
-        if (shouldLog(n)) {
-            logBoth(String.format("S3TC compress #%d: %s %d×%d %s %d→%d bytes (%.1fx)",
-                    n, label, w, h, format, origBytes, compBytes, (double)origBytes/Math.max(compBytes,1)));
-        }
-    }
-
-    public static void logS3TCSkip(String label, int w, int h, String reason) {
-        if (!enabled()) return;
-        int n = s3tcSkips.incrementAndGet();
-        if (n <= FULL_LOG) {
-            logBoth(String.format("S3TC skip #%d: %s %d×%d — %s", n, label, w, h, reason));
-        }
-    }
-
     // ---- CAS sharpening ----
 
     public static void logCasInit(int glProgram) {
@@ -267,9 +239,6 @@ public class VerificationLogger {
                 c.governor.minDistance, c.governor.cooldownTicks);
         LOG.info("{} Particle: enabled={} max={}",
                 PFX, c.particle.enabled, c.particle.maxParticles);
-        LOG.info("{} S3TC: enabled={} blockAtlas={} entities={} gui={} other={}",
-                PFX, c.s3tc.enabled, c.s3tc.compressBlockAtlas,
-                c.s3tc.compressEntityTextures, c.s3tc.compressGuiTextures, c.s3tc.compressOther);
         LOG.info("{} CAS: enabled={} sharpness={}",
                 PFX, c.cas.enabled, c.cas.sharpness);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
@@ -281,13 +250,10 @@ public class VerificationLogger {
         return String.format(
                 "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
                 + "Anim caps:%d | Particle rejects:%d | Governor actions:%d | Budget warns:%d | "
-                + "Atlas tracked:%d | Atlas caps:%d | "
-                + "S3TC compresses:%d skips:%d saved:%dMB | "
-                + "CAS frames:%d",
+                + "Atlas tracked:%d | Atlas caps:%d | CAS frames:%d",
                 shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
                 animCaps.get(), particleRejects.get(), governorActions.get(),
                 budgetWarnings.get(), atlasTracked.get(), atlasCaps.get(),
-                s3tcCompresses.get(), s3tcSkips.get(), s3tcBytesSaved.get() / 1048576,
                 casFrames.get());
     }
 
@@ -308,7 +274,6 @@ public class VerificationLogger {
         shadowCaps.set(0); formatDownscales.set(0); depthDownscales.set(0);
         animCaps.set(0); particleRejects.set(0); governorActions.set(0);
         budgetWarnings.set(0); atlasTracked.set(0); atlasCaps.set(0);
-        s3tcCompresses.set(0); s3tcSkips.set(0); s3tcBytesSaved.set(0);
         casFrames.set(0);
     }
 
@@ -320,9 +285,6 @@ public class VerificationLogger {
     public static int getFormatDownscales() { return formatDownscales.get(); }
     public static int getBudgetWarnings() { return budgetWarnings.get(); }
     public static int getShadowCaps() { return shadowCaps.get(); }
-    public static int getS3TCCompresses() { return s3tcCompresses.get(); }
-    public static int getS3TCSkips() { return s3tcSkips.get(); }
-    public static int getS3TCBytesSavedMB() { return s3tcBytesSaved.get() / 1048576; }
     public static int getCasFrames() { return casFrames.get(); }
 
     private static boolean shouldLog(int n) {
