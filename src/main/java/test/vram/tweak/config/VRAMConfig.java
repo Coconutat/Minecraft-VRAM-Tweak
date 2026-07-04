@@ -48,6 +48,7 @@ public class VRAMConfig {
 
     private static VRAMConfig instance;
     private static Path configPath;
+    private static boolean initialVramEnabled = false;
 
     public static VRAMConfig getInstance() {
         if (instance == null) instance = new VRAMConfig();
@@ -68,6 +69,7 @@ public class VRAMConfig {
             instance = new VRAMConfig();
             save();
         }
+        initialVramEnabled = instance.vram.enabled;
     }
 
     public static void save() {
@@ -79,6 +81,16 @@ public class VRAMConfig {
         } catch (IOException e) {
             LOGGER.error("Failed to save config", e);
         }
+    }
+
+    /**
+     * True when the in-memory "enabled" toggle differs from what was read at
+     * launch time. The config screen uses this to decide whether to show the
+     * red "restart required" banner under its title.
+     */
+    public static boolean isVramRestartRequired() {
+        if (instance == null) return false;
+        return instance.vram.enabled != initialVramEnabled;
     }
 
     // ---- VRAM section ----
