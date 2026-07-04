@@ -357,6 +357,3 @@ public class ClothConfigFactory {
         return builder.build();
     }
 }
-
-
-

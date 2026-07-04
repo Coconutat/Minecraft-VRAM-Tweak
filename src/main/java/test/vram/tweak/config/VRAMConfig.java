@@ -48,6 +48,7 @@ public class VRAMConfig {
 
     private static VRAMConfig instance;
     private static Path configPath;
+    private static boolean initialVramEnabled = false;
 
     public static VRAMConfig getInstance() {
         if (instance == null) instance = new VRAMConfig();
@@ -68,6 +69,7 @@ public class VRAMConfig {
             instance = new VRAMConfig();
             save();
         }
+        initialVramEnabled = instance.vram.enabled;
     }
 
     public static void save() {
@@ -79,6 +81,11 @@ public class VRAMConfig {
         } catch (IOException e) {
             LOGGER.error("Failed to save config", e);
         }
+    }
+
+    public static boolean isVramRestartRequired() {
+        if (instance == null) return false;
+        return instance.vram.enabled != initialVramEnabled;
     }
 
     // ---- VRAM section ----
