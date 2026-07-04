@@ -178,49 +178,6 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.particle.maxParticles = v)
                 .build());
 
-        // ---- S3TC (experimental) ----
-        var s3tc = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.s3tc"));
-
-        s3tc.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.s3tc.enabled"),
-                        cfg.s3tc.enabled)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.s3tc.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.s3tc.enabled = v)
-                .build());
-
-        s3tc.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.s3tc.blockAtlas"),
-                        cfg.s3tc.compressBlockAtlas)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.s3tc.blockAtlas.tooltip"))
-                .setSaveConsumer(v -> cfg.s3tc.compressBlockAtlas = v)
-                .build());
-
-        s3tc.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.s3tc.entityTextures"),
-                        cfg.s3tc.compressEntityTextures)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.s3tc.entityTextures.tooltip"))
-                .setSaveConsumer(v -> cfg.s3tc.compressEntityTextures = v)
-                .build());
-
-        s3tc.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.s3tc.guiTextures"),
-                        cfg.s3tc.compressGuiTextures)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.s3tc.guiTextures.tooltip"))
-                .setSaveConsumer(v -> cfg.s3tc.compressGuiTextures = v)
-                .build());
-
-        s3tc.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.s3tc.other"),
-                        cfg.s3tc.compressOther)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.s3tc.other.tooltip"))
-                .setSaveConsumer(v -> cfg.s3tc.compressOther = v)
-                .build());
-
         // ---- CAS ----
         var cas = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.cas"));
 
