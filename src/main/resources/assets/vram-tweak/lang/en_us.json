@@ -4,7 +4,7 @@
 
   "vramtweak.gui.category.vram": "⚡ VRAM Optimization",
   "vramtweak.gui.option.vram.enabled": "Enable VRAM Optimization",
-  "vramtweak.gui.option.vram.enabled.tooltip": "⚡ Master switch. When off, no VRAM optimizations apply.\nWill take a affect the next time you start the game.",
+  "vramtweak.gui.option.vram.enabled.tooltip": "⚡ Master switch. When off, no VRAM optimizations apply.\nThis option change will take effect the next time you launch the game—this mod intercepts texture creation, and loaded textures will not be dynamically restored.",
   "vramtweak.gui.option.shadowMapMaxSize": "Shadow Map Max Size (px)",
   "vramtweak.gui.option.shadowMapMaxSize.tooltip": "Limits shader shadow map resolution (256–4096).\n▲ Higher = sharper shadows, more VRAM.\n▼ Lower = saves VRAM, slightly softer shadow edges.\nDefault 1024.",
   "vramtweak.gui.option.formatDownscale": "Color Buffer Downscale",
