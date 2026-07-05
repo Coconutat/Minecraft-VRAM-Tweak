@@ -8,9 +8,11 @@
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
+  
 <p align="center">
   <img src="Cover.jpg" alt="VRAM Optimizer Cover" height="512" width="512"/>
 </p>
+  
 ***
 ## Developer's Note
 I initially set out to create an optimization mod for my low-end AMD GPU because I noticed unstable frame rates. While I couldn't fix the hardware limitations directly, modern AI tools allowed me to bring my modding ideas to life.
