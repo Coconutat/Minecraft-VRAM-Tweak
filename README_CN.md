@@ -76,6 +76,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
 
 **测试环境：** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
 **MC 1.21.11 + Fabric 0.19.3 + Sodium 0.8.13 + Iris 1.10.7 + 90+ mods**  
+**对比请参考这个:[对比文档](https://github.com/Coconutat/Minecraft-VRAM-Tweak/blob/imgs/README_CN.md)**  
 
 ### 纹理图集截断记录
 
