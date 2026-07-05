@@ -110,7 +110,7 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 
 | Dependency | Type | Version |
 |-----------|------|---------|
-| **Sodium** | Hard | 0.9.0+ |
+| **Sodium** | Suggested | 0.9.0+ |
 | Iris | Soft | 1.11+ *(shader compatibility)* |
 | Cloth Config | Soft | 26.2+ *(GUI)* |
 | ModMenu | Soft | 20.0+ *(config button)* |
