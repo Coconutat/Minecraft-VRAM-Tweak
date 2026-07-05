@@ -41,6 +41,7 @@ replay_*.log
 
 # tmp
 tmp
+.github
 
 # reference mods
 reference_mods
