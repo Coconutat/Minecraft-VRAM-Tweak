@@ -124,7 +124,7 @@ public class MixinGpuDevice_VRAMOptimize {
         at = @At("HEAD"), ordinal = 2, argsOnly = true)
     private int capHeight(int h) {
         try {
-            if (Boolean.TRUE.equals(IS_ATLAS.get())) {
+            if (Boolean.TRUE.equals(IS_ATLAS.get()) && VRAMOptimizer.isEnabled()) {
                 String name = ATLAS_NAME.get();
                 Integer sw = STORED_WIDTH.get();
                 String fmt = CURRENT_FORMAT.get();
