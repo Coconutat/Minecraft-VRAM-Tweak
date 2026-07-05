@@ -153,7 +153,7 @@ public class MetricsEngine {
                     if (freeKB > 128L * 1024 * 1024) { return; }
                     totalKB = Math.max(freeKB, 8192L * 1024); // can't query total on AMD, assume 8GB+
                 }
-                case NVIDIA -> {
+                case NVIDIA, INTEL -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
                     GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
                     GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
@@ -161,7 +161,7 @@ public class MetricsEngine {
                     totalKB = totalVal[0] & 0xFFFFFFFFL;
                     if (freeKB > 128L * 1024 * 1024 || totalKB > 128L * 1024 * 1024) { return; }
                 }
-                default -> { return; } // Intel/OTHER — no VRAM tracking
+                default -> { return; } // OTHER — no VRAM tracking
             }
             long freeMB = freeKB / 1024;
             lastVramTotalMB = totalKB / 1024;

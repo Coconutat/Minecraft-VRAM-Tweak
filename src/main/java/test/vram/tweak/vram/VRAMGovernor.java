@@ -70,9 +70,9 @@ public class VRAMGovernor {
         }
         if (cooldown > 0) { cooldown--; return; }
 
-        long freeBytes = VRAMOptimizer.queryFreeVRAM();
-        if (freeBytes <= 0) {
-            LOGGER.debug("[TRACE] Governor.onFrameEnd() skipped — VRAM query returned {}", freeBytes);
+        long freeKB = VRAMOptimizer.queryFreeVRAM();
+        if (freeKB <= 0) {
+            LOGGER.debug("[TRACE] Governor.onFrameEnd() skipped — VRAM query returned {}", freeKB);
             return;
         }
 
@@ -83,7 +83,7 @@ public class VRAMGovernor {
             return;
         }
 
-        long freeMB = freeBytes / 1024 / 1024;
+        long freeMB = freeKB / 1024;
         long usedMB = totalMB - freeMB;
         long thresholdMB = totalMB * targetPercent / 100;
 
