@@ -8,6 +8,7 @@
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
+![VRAM Tweak Cover](img/cover.png)
 ***
 ## 开发自述
 我一开始想为我低端的AMD GPU做优化mod，因为我发现其帧数不稳定。我对此无能为力，正好借助现在AI，我可以按照想法做出来mod。  
@@ -170,7 +171,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
   },
   "cas": {                          // 🆕 FSR CAS 锐化
     "enabled": false,
-    "sharpness": 0.8                // 锐化强度 0.0-1.0
+    "sharpness": 0.8                // 锐化强度 0.0-4.0
   },
   "hud": {
     "enabled": true,

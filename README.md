@@ -8,6 +8,14 @@
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
+![VRAM Tweak Cover](img/cover.png)
+***
+## Developer's Note
+I initially set out to create an optimization mod for my low-end AMD GPU because I noticed unstable frame rates. While I couldn't fix the hardware limitations directly, modern AI tools allowed me to bring my modding ideas to life.
+However, as development progressed, I discovered that the real issue was a VRAM bottleneck. I therefore shifted my focus to creating a mod optimized for low VRAM usage.
+In theory, this mod is universally compatible.
+For users with GPUs featuring 4GB or 6GB of VRAM, it helps reduce stuttering caused by insufficient video memory.
+***
 
 ## Overview
 
