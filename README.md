@@ -80,6 +80,7 @@ Configure via Cloth Config GUI or `config/vram-tweak.json`.
 
 **Hardware:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
 **Software:** MC 26.2 + Sodium + Iris + resource pack + shaders
+**For a comparison, please refer to this: [Comparison Document](https://github.com/Coconutat/Minecraft-VRAM-Tweak/blob/imgs/README.md)**
 
 ### Before vs After
 
