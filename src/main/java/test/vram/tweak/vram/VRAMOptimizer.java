@@ -124,15 +124,29 @@ public class VRAMOptimizer {
 
     /** Called each frame. Logs warnings when VRAM exceeds threshold. */
     public static void onFrameEnd() {
-        if (!enabled || !budgetTracking) return;
+        if (!enabled || !budgetTracking) {
+            // one-shot trace: log why budget tracking is inactive
+            if (budgetPercent > 0 && budgetPercent < 100 && LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[TRACE] VRAMOptimizer.onFrameEnd skipped (enabled={}, budgetTracking={})",
+                        enabled, budgetTracking);
+            }
+            return;
+        }
 
         long freeBytes = queryFreeVRAM();
         long totalMB = queryTotalVRAM();
-        if (freeBytes <= 0 || totalMB <= 0) return;
+        if (freeBytes <= 0 || totalMB <= 0) {
+            LOGGER.debug("[TRACE] VRAMOptimizer.onFrameEnd skipped (freeBytes={}, totalMB={})",
+                    freeBytes, totalMB);
+            return;
+        }
 
         long freeMB = freeBytes / 1024 / 1024;
         long usedMB = totalMB - freeMB;
         long thresholdMB = totalMB * budgetPercent / 100;
+
+        LOGGER.debug("[TRACE] VRAMOptimizer.onFrameEnd: used={}MB/{}MB threshold={}MB overBudget={} cooldown={}",
+                usedMB, totalMB, thresholdMB, overBudget, cooldown);
 
         MetricsEngine.setVramUsed(usedMB);
 
@@ -158,9 +172,19 @@ public class VRAMOptimizer {
 
     /** Only downscale 16-bit color formats. Never touch depth/stencil. */
     public static boolean shouldDownscaleFormat(String formatName) {
-        if (!enabled || !formatDownscale || formatName == null) return false;
-        if (formatName.startsWith("D") || formatName.startsWith("S")) return false;
-        return formatName.contains("16");
+        boolean result = enabled && formatDownscale && formatName != null;
+        if (!result) {
+            LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = false (enabled={}, formatDownscale={})",
+                    formatName, enabled, formatDownscale);
+            return false;
+        }
+        if (formatName.startsWith("D") || formatName.startsWith("S")) {
+            LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = false (depth/stencil, skipped)", formatName);
+            return false;
+        }
+        boolean should = formatName.contains("16");
+        LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = {}", formatName, should);
+        return should;
     }
 
     public static void logDownscale(String source, String original) {
@@ -182,7 +206,10 @@ public class VRAMOptimizer {
 
     /** Only cap if enabled AND the texture exceeds maxShadowSize AND is square (shadow maps are always square). */
     public static boolean shouldCap(int width, int height) {
-        return enabled && width == height && width > maxShadowSize;
+        boolean result = enabled && width == height && width > maxShadowSize;
+        LOGGER.debug("[TRACE] shouldCap({}x{}) = {} (enabled={}, maxShadowSize={})",
+                width, height, result, enabled, maxShadowSize);
+        return result;
     }
 
     /** Depth formats start with "D" (D16_UNORM, D24_UNORM_S8_UINT, D32_FLOAT, etc.). */
@@ -194,7 +221,10 @@ public class VRAMOptimizer {
 
     /** D32_FLOAT 鈫?D16_UNORM for shadow maps. Only pure depth, no stencil. */
     public static boolean shouldDownscaleDepth(String formatName) {
-        return enabled && depthDownscale && "D32_FLOAT".equals(formatName);
+        boolean result = enabled && depthDownscale && "D32_FLOAT".equals(formatName);
+        LOGGER.debug("[TRACE] shouldDownscaleDepth({}) = {} (enabled={}, depthDownscale={})",
+                formatName, result, enabled, depthDownscale);
+        return result;
     }
 
     public static void logDepthDownscale(String original) {

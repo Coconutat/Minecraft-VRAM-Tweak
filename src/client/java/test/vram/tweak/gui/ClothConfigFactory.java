@@ -3,8 +3,12 @@ package test.vram.tweak.gui;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
@@ -17,14 +21,28 @@ import test.vram.tweak.vram.VRAMOptimizer;
  */
 public class ClothConfigFactory {
 
+    private static final Logger LOG = LoggerFactory.getLogger("vram-tweak/gui");
+    private static Screen lastParentScreen;
+
     public static Screen create(Screen parent) {
+        lastParentScreen = parent;
+        LOG.info("[GUI] Config screen opened");
         var builder = ConfigBuilder.create()
                 .setParentScreen(parent)
                 .setTitle(Component.translatable("vramtweak.gui.title"))
                 .setSavingRunnable(() -> {
-                    VRAMConfig.save();
-                    VRAMOptimizer.reload();
-                    VRAMGovernor.reload();
+                    if (VRAMConfig.isVramRestartRequired()) {
+                        LOG.info("[GUI] Restart required: initial={} current={} — ClothConfig handles confirm",
+                                VRAMConfig.getInitialVramEnabled(), VRAMConfig.getInstance().vram.enabled);
+                        VRAMConfig.save();
+                        VRAMOptimizer.reload();
+                        VRAMGovernor.reload();
+                    } else {
+                        LOG.info("[GUI] Saving config (no restart required)");
+                        VRAMConfig.save();
+                        VRAMOptimizer.reload();
+                        VRAMGovernor.reload();
+                    }
                 });
 
         var eb = builder.entryBuilder();
@@ -39,6 +57,7 @@ public class ClothConfigFactory {
                 .setDefaultValue(false)
                 .setTooltip(Component.translatable("vramtweak.gui.option.vram.enabled.tooltip"))
                 .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
+                .requireRestart()
                 .build());
 
         vram.addEntry(eb.startIntField(

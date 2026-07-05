@@ -67,7 +67,8 @@ public abstract class MixinScreen_RestartWarning {
 
     private void drawIfNeeded(GuiGraphicsExtractor g) {
         try {
-            if (g == null || !VRAMConfig.isVramRestartRequired()) return;
+            if (g == null) return;
+            if (!VRAMConfig.isVramRestartRequired()) return;
 
             // `this` IS the Screen currently being rendered. Gate by title so we
             // only draw on the VRAM Tweak config screen and nowhere else.

@@ -105,9 +105,13 @@ public class MixinGpuDevice_VRAMOptimize {
                     String name = ATLAS_NAME.get();
                     if (name != null) {
                         VRAMOptimizer.logAtlasCap(name, "W", w, cfg.maxAtlasSize);
+                        VRAMTweak.LOGGER.info("[AtlasCaps] {} width capped: {} -> {}", name, w, cfg.maxAtlasSize);
                     }
                     STORED_WIDTH.set(cfg.maxAtlasSize);
                     return cfg.maxAtlasSize;
+                }
+                if (cfg.atlasSizeLimit && w <= cfg.maxAtlasSize) {
+                    VRAMTweak.LOGGER.debug("[AtlasCaps] {} width={} under limit={}, no cap", ATLAS_NAME.get(), w, cfg.maxAtlasSize);
                 }
             }
         } catch (Exception e) {
@@ -135,6 +139,7 @@ public class MixinGpuDevice_VRAMOptimize {
                 if (cfg.atlasSizeLimit && h > cfg.maxAtlasSize) {
                     if (name != null) {
                         VRAMOptimizer.logAtlasCap(name, "H", h, cfg.maxAtlasSize);
+                        VRAMTweak.LOGGER.info("[AtlasCaps] {} height capped: {} -> {}", name, h, cfg.maxAtlasSize);
                     }
                     return cfg.maxAtlasSize;
                 }
@@ -145,7 +150,13 @@ public class MixinGpuDevice_VRAMOptimize {
             if (sw != null && VRAMOptimizer.isDepthFormat(fmt) && VRAMOptimizer.shouldCap(sw, h)) {
                 int capped = VRAMOptimizer.capSize(h);
                 VRAMOptimizer.logShadowCap(sw, h, sw, capped);
+                VRAMTweak.LOGGER.info("[ShadowCaps] shadow map {}x{} -> {} (enabled={}, maxShadowSize={})",
+                        sw, h, capped, VRAMOptimizer.isEnabled(), VRAMConfig.getInstance().vram.shadowMapMaxSize);
                 return capped;
+            }
+            if (sw != null && VRAMOptimizer.isDepthFormat(fmt) && !VRAMOptimizer.shouldCap(sw, h)) {
+                VRAMTweak.LOGGER.debug("[ShadowCaps] depth texture {}x{} no cap (enabled={} maxShadowSize={})",
+                        sw, h, VRAMOptimizer.isEnabled(), VRAMConfig.getInstance().vram.shadowMapMaxSize);
             }
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("capHeight failed", e);

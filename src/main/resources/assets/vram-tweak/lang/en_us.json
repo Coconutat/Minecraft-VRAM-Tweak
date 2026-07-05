@@ -1,6 +1,10 @@
 {
   "vramtweak.gui.title": "VRAM Tweak",
   "vramtweak.gui.restartRequired": "§cYou must restart your game to change the VRAM Optimization state.",
+  "vramtweak.gui.restartRequired.title": "§c⚠ §lConfirm VRAM Optimization Change",
+  "vramtweak.gui.restartRequired.message": "§cVRAM Optimization state has changed!\n\n§7This option requires §ea game restart §7to take effect.\n§7Loaded textures will not be dynamically restored.\n\n§c⚠ Are you sure you want to change this?",
+  "vramtweak.gui.restartRequired.confirm": "§aI Confirm",
+  "vramtweak.gui.restartRequired.cancel": "Cancel",
 
   "vramtweak.gui.category.vram": "⚡ VRAM Optimization",
   "vramtweak.gui.option.vram.enabled": "Enable VRAM Optimization",
@@ -46,7 +50,7 @@
   "vramtweak.gui.option.cas.enabled": "Enable CAS Sharpening",
   "vramtweak.gui.option.cas.enabled.tooltip": "AMD FidelityFX Contrast Adaptive Sharpening.\nApplied after world render, before HUD.\nRecovers detail lost to resolution scaling or compression.\nZero VRAM cost, negligible GPU overhead.",
   "vramtweak.gui.option.cas.sharpness": "Sharpness",
-  "vramtweak.gui.option.cas.sharpness.tooltip": "Sharpening intensity (0.0–4.0).\n▲ 0.8 = subtle (AMD recommended).\n▲ 2.0 = clearly visible.\n▲ 4.0 = aggressive sharpening, may show halos.\n▼ 0.0 = off (no effect).",
+  "vramtweak.gui.option.cas.sharpness.tooltip": "Sharpening intensity (0.0–4.0).\n▲ 0.8 = subtle (AMD recommended).\n▲ 0.8 = clearly visible.\n▲ 1.0 = aggressive sharpening, may show halos.\n▼ 0.0 = off (no effect).",
 
   "vramtweak.gui.category.hud": "📊 HUD Overlay",
   "vramtweak.gui.category.diagnostic": "🔍 Diagnostics",

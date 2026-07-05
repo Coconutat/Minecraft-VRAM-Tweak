@@ -70,22 +70,49 @@ public class VRAMConfig {
             save();
         }
         initialVramEnabled = instance.vram.enabled;
+        LOGGER.info("[Config] Loaded: vram.enabled={} (initial={})", instance.vram.enabled, initialVramEnabled);
     }
 
     public static void save() {
-        if (configPath == null) return;
+        if (configPath == null) {
+            LOGGER.warn("[Config] save() called but configPath is null — config not yet loaded");
+            return;
+        }
         try {
             Files.createDirectories(configPath.getParent());
             Files.writeString(configPath, GSON.toJson(getInstance()),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            LOGGER.info("[Config] Saved to {} (vram.enabled={})", configPath, instance.vram.enabled);
         } catch (IOException e) {
             LOGGER.error("Failed to save config", e);
         }
     }
 
     public static boolean isVramRestartRequired() {
-        if (instance == null) return false;
-        return instance.vram.enabled != initialVramEnabled;
+        if (instance == null) {
+            LOGGER.warn("[Config] isVramRestartRequired() called but instance is null");
+            return false;
+        }
+        boolean changed = instance.vram.enabled != initialVramEnabled;
+        if (changed) {
+            LOGGER.info("[Config] Restart required: initial={} current={}", initialVramEnabled, instance.vram.enabled);
+        }
+        return changed;
+    }
+
+    /** Returns the initial vram.enabled value from game startup. */
+    public static boolean getInitialVramEnabled() {
+        return initialVramEnabled;
+    }
+
+    /** Restores vram.enabled to its initial startup value (used when user cancels a restart-required change). */
+    public static void restoreVramEnabled() {
+        if (instance != null) {
+            LOGGER.info("[Config] Restoring vram.enabled: {} → {} (initial)", instance.vram.enabled, initialVramEnabled);
+            instance.vram.enabled = initialVramEnabled;
+        } else {
+            LOGGER.warn("[Config] restoreVramEnabled() called but instance is null");
+        }
     }
 
     // ---- VRAM section ----

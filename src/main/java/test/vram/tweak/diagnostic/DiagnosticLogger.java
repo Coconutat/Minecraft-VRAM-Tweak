@@ -52,11 +52,25 @@ public class DiagnosticLogger {
         sb.append("  GL Version: ").append(GL11.glGetString(GL11.GL_VERSION)).append("\n");
         sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
 
-        // VRAM via ATI_meminfo
+        // VRAM query
         try {
-            int[] vals = new int[4];
-            GL11.glGetIntegerv(0x87FB, vals); // TEXTURE_FREE_MEMORY_ATI
-            sb.append("  VRAM free (ATI_meminfo): ").append(vals[0]).append(" KB\n");
+            switch (GPUDetector.getGPU()) {
+                case AMD -> {
+                    int[] vals = new int[4];
+                    GL11.glGetIntegerv(0x87FB, vals); // TEXTURE_FREE_MEMORY_ATI
+                    sb.append("  VRAM free (ATI_meminfo): ").append(vals[0] & 0xFFFFFFFFL).append(" KB\n");
+                }
+                case NVIDIA -> {
+                    int[] freeVal = new int[1], totalVal = new int[1];
+                    GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
+                    GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
+                    sb.append("  VRAM free (NVX_meminfo): ").append(freeVal[0] & 0xFFFFFFFFL).append(" KB\n");
+                    sb.append("  VRAM total (NVX_meminfo): ").append(totalVal[0] & 0xFFFFFFFFL).append(" KB\n");
+                }
+                default -> {
+                    sb.append("  VRAM query: unavailable (GPU type not supported)\n");
+                }
+            }
         } catch (Exception e) {
             sb.append("  VRAM query: unavailable\n");
         }
