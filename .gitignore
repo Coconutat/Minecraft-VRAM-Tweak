@@ -51,3 +51,5 @@ agent
 skills-lock.json
 Docs
 .continue
+AGENT*.md
+CONTEXT*.md
