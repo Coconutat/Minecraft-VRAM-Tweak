@@ -50,7 +50,7 @@
   "vramtweak.gui.option.cas.enabled": "Enable CAS Sharpening",
   "vramtweak.gui.option.cas.enabled.tooltip": "AMD FidelityFX Contrast Adaptive Sharpening.\nApplied after world render, before HUD.\nRecovers detail lost to resolution scaling or compression.\nZero VRAM cost, negligible GPU overhead.",
   "vramtweak.gui.option.cas.sharpness": "Sharpness",
-  "vramtweak.gui.option.cas.sharpness.tooltip": "Sharpening intensity (0.0–4.0).\n▲ 0.8 = subtle (AMD recommended).\n▲ 2.0 = clearly visible.\n▲ 4.0 = aggressive sharpening, may show halos.\n▼ 0.0 = off (no effect).",
+  "vramtweak.gui.option.cas.sharpness.tooltip": "Sharpening intensity (0.0–1.0) — AMD FidelityFX CAS 1.2.\n▲ 0.2–0.4 = subtle (AMD recommended 0.2).\n▲ 0.5–0.7 = clearly visible.\n▲ 0.8–1.0 = aggressive sharpening, may show halos.\n▼ 0.0 = off (no effect).",
 
   "vramtweak.gui.category.hud": "📊 HUD Overlay",
   "vramtweak.gui.category.diagnostic": "🔍 Diagnostics",

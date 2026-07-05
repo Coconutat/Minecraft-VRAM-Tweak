@@ -246,6 +246,6 @@ public class VRAMConfig {
         public boolean enabled = false;
 
         @SerializedName("sharpness")
-        public float sharpness = 0.8f;  // 0.0 = off, 4.0 = aggressive
+        public float sharpness = 0.2f;  // 0.0–1.0, AMD default ~0.2
     }
 }

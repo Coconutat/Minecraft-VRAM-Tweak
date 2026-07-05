@@ -176,7 +176,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 引擎层面拦截 GPU 纹理创建。
   },
   "cas": {                          // 🆕 FSR CAS 锐化
     "enabled": false,
-    "sharpness": 0.8                // 锐化强度 0.0-4.0
+    "sharpness": 0.2                // 锐化强度 0.0-1.0（AMD 默认）
   },
   "hud": {
     "enabled": true,

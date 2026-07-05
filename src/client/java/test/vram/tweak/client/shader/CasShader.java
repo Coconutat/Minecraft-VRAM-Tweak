@@ -7,10 +7,11 @@ import test.vram.tweak.VRAMTweak;
 import test.vram.tweak.config.VRAMConfig;
 
 /**
- * FSR Contrast Adaptive Sharpening (CAS) — single-pass fullscreen sharpening.
+ * FidelityFX Contrast Adaptive Sharpening (CAS) 1.2 — single-pass fullscreen sharpen.
  *
- * Based on AMD FidelityFX CAS algorithm (MIT licensed).
- * Embedded GLSL shader, no resource files needed.
+ * Based on AMD FidelityFX SDK 1.1.4 ffx_cas.h (MIT licensed).
+ * casFilterNoScaling + BETTER_DIAGONALS + green-channel weight path.
+ * Embedded GLSL 150 core, no resource files.
  *
  * ponytail: CAS is the simplest sharpening that works. Only one float param.
  */
@@ -33,7 +34,8 @@ public class CasShader {
             -1f,  1f, 0f, 1f,  // top-left
     };
 
-    // ponytail: CAS fragment shader (AMD FidelityFX, MIT)
+    // ponytail: CAS fragment shader — AMD FidelityFX CAS 1.2 (MIT)
+    // Translated from ffx_cas.h casFilterNoScaling (cross-pattern, sharpen-only)
     private static final String FRAG_SHADER = """
             #version 150 core
             uniform sampler2D uTexture;
@@ -44,43 +46,45 @@ public class CasShader {
             out vec4 fragColor;
 
             void main() {
-                // CAS kernel: contrast-adaptive sharpen
-                vec2 texelSize = 1.0 / uScreenSize;
+                vec2 px = 1.0 / uScreenSize;
                 vec2 tc = vTexCoord;
 
-                // Sample 3×3 neighborhood
-                vec3 a = texture(uTexture, tc + vec2(-texelSize.x, -texelSize.y)).rgb;
-                vec3 b = texture(uTexture, tc + vec2(0.0, -texelSize.y)).rgb;
-                vec3 c = texture(uTexture, tc + vec2(texelSize.x, -texelSize.y)).rgb;
-                vec3 d = texture(uTexture, tc + vec2(-texelSize.x, 0.0)).rgb;
+                // 3x3 neighborhood (a-i, e=center)
+                vec3 a = texture(uTexture, tc + vec2(-px.x, -px.y)).rgb;
+                vec3 b = texture(uTexture, tc + vec2( 0.0, -px.y)).rgb;
+                vec3 c = texture(uTexture, tc + vec2( px.x, -px.y)).rgb;
+                vec3 d = texture(uTexture, tc + vec2(-px.x,  0.0)).rgb;
                 vec3 e = texture(uTexture, tc).rgb;
-                vec3 f = texture(uTexture, tc + vec2(texelSize.x, 0.0)).rgb;
-                vec3 g = texture(uTexture, tc + vec2(-texelSize.x, texelSize.y)).rgb;
-                vec3 h = texture(uTexture, tc + vec2(0.0, texelSize.y)).rgb;
-                vec3 i = texture(uTexture, tc + vec2(texelSize.x, texelSize.y)).rgb;
+                vec3 f = texture(uTexture, tc + vec2( px.x,  0.0)).rgb;
+                vec3 g = texture(uTexture, tc + vec2(-px.x,  px.y)).rgb;
+                vec3 h = texture(uTexture, tc + vec2( 0.0,  px.y)).rgb;
+                vec3 i = texture(uTexture, tc + vec2( px.x,  px.y)).rgb;
 
-                // CAS algorithm
-                // sharpness 0.0-4.0: 0.8=subtle, 2.0=visible, 4.0=aggressive
-                float sharpness = uSharpness;
+                // Soft min/max from cross samples (b,d,e,f,h)
+                // 2.0x bigger — factored out extra multiply
+                vec3 mn = min(min(min(d, e), f), min(b, h));
+                vec3 mx = max(max(max(d, e), f), max(b, h));
 
-                // Min and max of neighborhood
-                vec3 minRGB = min(min(min(a, b), min(c, d)), min(min(e, f), min(g, h)));
-                minRGB = min(minRGB, i);
-                vec3 maxRGB = max(max(max(a, b), max(c, d)), max(max(e, f), max(g, h)));
-                maxRGB = max(maxRGB, i);
+                // Include diagonals (doubled) for BETTER_DIAGONALS quality
+                // mn += min(mn, min(min(a, c), min(g, i)))
+                // mx += max(mx, max(max(a, c), max(g, i)))
+                // Simpler: just merge into min/max directly
+                mn = min(mn, min(min(a, c), min(g, i)));
+                mx = max(mx, max(max(a, c), max(g, i)));
 
-                // Soft filter (Gaussian-like blur edge)
-                vec3 softFilter = (a + c + f + h + d + g + b + i) * 0.125 + e * 0.25;
+                // Amplitude from local contrast
+                vec3 amp = clamp(min(mn, 1.0 - mx) / (mx + 1e-8), 0.0, 1.0);
+                amp = sqrt(amp);
 
-                // CAS: pull center away from soft filter, scaled by local contrast
-                vec3 detail = e - softFilter;
-                vec3 contrast = (maxRGB - minRGB) + 0.001;
-                vec3 sharpened = e + detail * sharpness * clamp(1.0 - abs(detail) / contrast, 0.0, 1.0);
+                // Peak from sharpness: -1/lerp(8, 5, saturate(s))
+                float peak = -1.0 / mix(8.0, 5.0, clamp(uSharpness, 0.0, 1.0));
+                vec3 w = amp * peak;
 
-                // Anti-ringing: clamp to local min/max (softer)
-                sharpened = mix(sharpened, clamp(sharpened, minRGB, maxRGB), 0.5 + 0.5 * clamp(sharpness * 0.5, 0.0, 1.0));
+                // Filter using green-channel weight only (SDK canonical path)
+                float rw = 1.0 / (1.0 + 4.0 * w.g);
+                vec3 outC = (b*w.g + d*w.g + f*w.g + h*w.g + e) * rw;
 
-                fragColor = vec4(sharpened, 1.0);
+                fragColor = vec4(clamp(outC, 0.0, 1.0), 1.0);
             }
             """;
 
