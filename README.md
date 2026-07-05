@@ -8,6 +8,11 @@
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
+  
+<p align="center">
+  <img src="Cover.jpg" alt="VRAM Optimizer Cover" height="512" width="512"/>
+</p>
+
 ***
 ## Developer's Note
 
