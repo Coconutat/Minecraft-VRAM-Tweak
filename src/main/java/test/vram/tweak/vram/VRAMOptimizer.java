@@ -71,16 +71,18 @@ public class VRAMOptimizer {
         return switch (GPUDetector.getGPU()) {
             case AMD -> queryFreeVRAM_AMD();
             case NVIDIA -> queryFreeVRAM_NVIDIA();
+            case INTEL -> queryFreeVRAM_INTEL();
             default -> -1;
         };
     }
 
+    // All internal query methods return KB.
     private static long queryFreeVRAM_AMD() {
         try {
             int[] result = new int[4];
             GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-            // GL_ATI_meminfo returns unsigned int KB. Handle sign extension.
-            return (result[0] & 0xFFFFFFFFL) * 1024L; // KB → bytes
+            // GL_ATI_meminfo slot 0 = free memory in KB. Sign extension fix.
+            return result[0] & 0xFFFFFFFFL;
         } catch (Exception e) { return -1; }
     }
 
@@ -88,7 +90,22 @@ public class VRAMOptimizer {
         try {
             int[] result = new int[1];
             GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
-            return (long) result[0]; // NVX returns KB directly
+            return result[0] & 0xFFFFFFFFL;
+        } catch (Exception e) { return -1; }
+    }
+
+    // Intel also supports GL_ATI_meminfo on many iGPUs; fallback to same path.
+    private static long queryFreeVRAM_INTEL() {
+        // ponytail: try NVX first (modern Intel Arc), fallback to ATI
+        try {
+            int[] result = new int[1];
+            GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
+            if (result[0] > 0) return result[0] & 0xFFFFFFFFL;
+        } catch (Exception ignored) {}
+        try {
+            int[] result = new int[4];
+            GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
+            return result[0] & 0xFFFFFFFFL;
         } catch (Exception e) { return -1; }
     }
 
@@ -98,14 +115,13 @@ public class VRAMOptimizer {
             return switch (GPUDetector.getGPU()) {
                 case AMD -> {
                     // GL_ATI_meminfo only reports free VRAM — total not directly queryable.
-                    // Use conservative estimate: max(free, 8GB) in KB.
-                    long freeKB = queryFreeVRAM_AMD() / 1024;
+                    long freeKB = queryFreeVRAM_AMD();
                     yield Math.max(freeKB, 8192L * 1024) / 1024; // KB → MB
                 }
-                case NVIDIA -> {
+                case NVIDIA, INTEL -> {
                     int[] result = new int[1];
                     GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
-                    long kb = (long) result[0];
+                    long kb = result[0] & 0xFFFFFFFFL;
                     yield kb / 1024; // KB → MB
                 }
                 default -> 0L;
@@ -113,25 +129,24 @@ public class VRAMOptimizer {
         } catch (Exception e) { return 0; }
     }
 
-    /** Estimate total VRAM. Deprecated — use queryTotalVRAM(). */
+    /** Estimate total VRAM in MB. */
     public static long estimateTotalMB() {
         long total = queryTotalVRAM();
         if (total > 0) return total;
-        long free = queryFreeVRAM();
-        if (free <= 0) return 0;
-        return free / 1024 / 1024;
+        long freeKB = queryFreeVRAM();
+        if (freeKB <= 0) return 0;
+        return Math.max(freeKB, 8192L * 1024) / 1024;
     }
 
     /** Called each frame. Logs warnings when VRAM exceeds threshold. */
     public static void onFrameEnd() {
         if (!enabled || !budgetTracking) return;
 
-        long freeBytes = queryFreeVRAM();
+        long freeKB = queryFreeVRAM();
         long totalMB = queryTotalVRAM();
-        if (freeBytes <= 0 || totalMB <= 0) return;
+        if (freeKB <= 0 || totalMB <= 0) return;
 
-        long freeMB = freeBytes / 1024 / 1024;
-        long usedMB = totalMB - freeMB;
+        long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * budgetPercent / 100;
 
         MetricsEngine.setVramUsed(usedMB);

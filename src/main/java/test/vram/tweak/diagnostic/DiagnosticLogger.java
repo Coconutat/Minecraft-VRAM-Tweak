@@ -60,7 +60,7 @@ public class DiagnosticLogger {
                     GL11.glGetIntegerv(0x87FB, vals);
                     sb.append("  VRAM free (ATI_meminfo): ").append(vals[0] & 0xFFFFFFFFL).append(" KB\n");
                 }
-                case NVIDIA -> {
+                case NVIDIA, INTEL -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
                     GL11.glGetIntegerv(0x9049, freeVal);
                     GL11.glGetIntegerv(0x9047, totalVal);

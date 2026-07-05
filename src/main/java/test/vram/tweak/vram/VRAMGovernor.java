@@ -62,13 +62,13 @@ public class VRAMGovernor {
         if (!enabled) return;
         if (cooldown > 0) { cooldown--; return; }
 
-        long freeBytes = VRAMOptimizer.queryFreeVRAM();
-        if (freeBytes <= 0) return;
+        long freeKB = VRAMOptimizer.queryFreeVRAM();
+        if (freeKB <= 0) return;
 
-        // Rough total VRAM estimate 鈥?same as VRAMOptimizer.onFrameEnd
-        long totalMB = 8176;
-        long freeMB = freeBytes / 1024 / 1024;
-        long usedMB = totalMB - freeMB;
+        long totalMB = VRAMOptimizer.queryTotalVRAM();
+        if (totalMB <= 0) return;
+
+        long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * targetPercent / 100;
 
         if (usedMB > thresholdMB && currentCap > minDistance) {
@@ -76,7 +76,7 @@ public class VRAMGovernor {
             currentCap = Math.max(minDistance, currentCap - 1);
             cooldown = cooldownTicks;
             VerificationLogger.logGovernorAction("reduce", currentCap + 1, currentCap, usedMB, totalMB);
-            LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Reducing render distance 鈫?{}",
+            LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Reducing render distance -> {}",
                     usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
         } else if (usedMB < totalMB * (targetPercent - hysteresis) / 100 && currentCap < Integer.MAX_VALUE) {
             // recover by 1 chunk
@@ -88,7 +88,7 @@ public class VRAMGovernor {
                 originalDistance = -1;
                 LOGGER.info("VRAM recovered: {}MB. Render distance restored.", usedMB);
             } else {
-                LOGGER.info("VRAM recovering: {}MB. Render distance 鈫?{}", usedMB, currentCap);
+                LOGGER.info("VRAM recovering: {}MB. Render distance -> {}", usedMB, currentCap);
             }
         }
     }

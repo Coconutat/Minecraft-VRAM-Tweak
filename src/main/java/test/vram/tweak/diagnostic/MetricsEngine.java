@@ -149,25 +149,22 @@ public class MetricsEngine {
                     int[] vals = new int[4];
                     GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
                     freeKB = vals[0] & 0xFFFFFFFFL;
-                    // Sanity check: free VRAM must be 0–128 GB. AMD drivers may return garbage.
                     if (freeKB > 128L * 1024 * 1024) { return; }
-                    totalKB = Math.max(freeKB, 8192L * 1024); // can't query total on AMD, assume 8GB+
+                    totalKB = Math.max(freeKB, 8192L * 1024);
                 }
-                case NVIDIA -> {
+                case NVIDIA, INTEL -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
-                    GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
-                    GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
+                    GL11.glGetIntegerv(0x9049, freeVal);
+                    GL11.glGetIntegerv(0x9047, totalVal);
                     freeKB = freeVal[0] & 0xFFFFFFFFL;
                     totalKB = totalVal[0] & 0xFFFFFFFFL;
                     if (freeKB > 128L * 1024 * 1024 || totalKB > 128L * 1024 * 1024) { return; }
                 }
-                default -> { return; } // Intel/OTHER — no VRAM tracking
+                default -> { return; }
             }
-            long freeMB = freeKB / 1024;
             lastVramTotalMB = totalKB / 1024;
-            lastVramUsedMB = lastVramTotalMB - freeMB;
+            lastVramUsedMB = lastVramTotalMB - (freeKB / 1024);
         } catch (Exception ignored) {
-            // GL context might not be current — skip this poll
         }
     }
 
