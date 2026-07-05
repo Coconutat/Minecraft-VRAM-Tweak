@@ -62,7 +62,7 @@ Real-time performance overlay, each metric independently toggleable: FPS (smooth
 
 **HW:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
 **SW:** MC 1.21.11 + Sodium 0.8.13 + Iris 1.10.7 (1.21.11) / MC 26.2 + Sodium 0.9.0 + Iris 1.11.1 (26.2)
-**For a comparison, please refer to this: [Comparison Document](https://github.com/Coconutat/Minecraft-VRAM-Tweak/blob/imgs/README_CN.md)**  
+**For a comparison, please refer to this: [Comparison Document](https://github.com/Coconutat/Minecraft-VRAM-Tweak/blob/imgs/README.md)**  
 
 ### Atlas Caps
 
