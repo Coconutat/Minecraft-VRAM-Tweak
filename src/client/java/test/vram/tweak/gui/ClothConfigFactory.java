@@ -192,8 +192,8 @@ public class ClothConfigFactory {
         cas.addEntry(eb.startFloatField(
                         Component.translatable("vramtweak.gui.option.cas.sharpness"),
                         cfg.cas.sharpness)
-                .setDefaultValue(0.8f)
-                .setMin(0.0f).setMax(4.0f)
+                .setDefaultValue(0.2f)
+                .setMin(0.0f).setMax(1.0f)
                 .setTooltip(Component.translatable("vramtweak.gui.option.cas.sharpness.tooltip"))
                 .setSaveConsumer(v -> cfg.cas.sharpness = v)
                 .build());
