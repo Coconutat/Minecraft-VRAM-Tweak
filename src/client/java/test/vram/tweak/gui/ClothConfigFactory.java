@@ -3,8 +3,12 @@ package test.vram.tweak.gui;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
@@ -17,14 +21,27 @@ import test.vram.tweak.vram.VRAMOptimizer;
  */
 public class ClothConfigFactory {
 
+    private static final Logger LOG = LoggerFactory.getLogger("vram-tweak/gui");
+
     public static Screen create(Screen parent) {
+        LOG.info("[GUI] Config screen opened");
         var builder = ConfigBuilder.create()
                 .setParentScreen(parent)
                 .setTitle(Component.translatable("vramtweak.gui.title"))
                 .setSavingRunnable(() -> {
+                    LOG.info("[GUI] Saving config");
                     VRAMConfig.save();
                     VRAMOptimizer.reload();
                     VRAMGovernor.reload();
+                    if (VRAMConfig.isVramRestartRequired()) {
+                        LOG.info("[GUI] Restart required, showing toast");
+                        var mc = Minecraft.getInstance();
+                        SystemToast.add(mc.getToastManager(),
+                            SystemToast.SystemToastId.PACK_LOAD_FAILURE,
+                            Component.translatable("vramtweak.gui.restartRequired.title"),
+                            Component.translatable("vramtweak.gui.restartRequired.message")
+                        );
+                    }
                 });
 
         var eb = builder.entryBuilder();

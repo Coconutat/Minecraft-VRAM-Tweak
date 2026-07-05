@@ -32,8 +32,9 @@ public class GPUDetector {
     private static GPUType detect(String vendorStr, String rendererStr) {
         String s = ((vendorStr != null ? vendorStr : "") + " "
                 + (rendererStr != null ? rendererStr : "")).toLowerCase();
-        if (s.contains("ati") || s.contains("amd") || s.contains("radeon")) return GPUType.AMD;
+        // NVIDIA first — "NVIDIA Corporation" contains "ati" substring
         if (s.contains("nvidia") || s.contains("geforce")) return GPUType.NVIDIA;
+        if (s.contains("ati") || s.contains("amd") || s.contains("radeon")) return GPUType.AMD;
         if (s.contains("intel")) return GPUType.INTEL;
         return GPUType.OTHER;
     }

@@ -1,6 +1,10 @@
 {
   "vramtweak.gui.title": "VRAM Tweak",
   "vramtweak.gui.restartRequired": "§cYou must restart your game to change the VRAM Optimization state.",
+  "vramtweak.gui.restartRequired.title": "§c⚠ §lConfirm VRAM Optimization Change",
+  "vramtweak.gui.restartRequired.message": "§cVRAM Optimization state has changed!\n\n§7This option requires §ea game restart §7to take effect.\n§7Loaded textures will not be dynamically restored.\n\n§c⚠ Are you sure you want to change this?",
+  "vramtweak.gui.restartRequired.confirm": "§aI Confirm",
+  "vramtweak.gui.restartRequired.cancel": "Cancel",
 
   "vramtweak.gui.category.vram": "⚡ VRAM Optimization",
   "vramtweak.gui.option.vram.enabled": "Enable VRAM Optimization",

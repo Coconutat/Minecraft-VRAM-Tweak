@@ -93,6 +93,8 @@ public class VRAMConfig {
         return instance.vram.enabled != initialVramEnabled;
     }
 
+    public static boolean getInitialVramEnabled() { return initialVramEnabled; }
+
     // ---- VRAM section ----
 
     public static class VRAMSection {

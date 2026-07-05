@@ -1,6 +1,10 @@
 {
   "vramtweak.gui.title": "VRAM Tweak",
   "vramtweak.gui.restartRequired": "§c必须重启游戏才能更改 VRAM 优化状态。",
+  "vramtweak.gui.restartRequired.title": "§c⚠ §l确认更改 VRAM 优化状态",
+  "vramtweak.gui.restartRequired.message": "§cVRAM 优化状态已更改！\n\n§7此选项需要 §e重启游戏 §7才能生效。\n§7当前已加载的纹理不会被动态还原。\n\n§c⚠ 你确定要更改吗？",
+  "vramtweak.gui.restartRequired.confirm": "§a我确认",
+  "vramtweak.gui.restartRequired.cancel": "取消",
 
   "vramtweak.gui.category.vram": "⚡ VRAM 优化",
   "vramtweak.gui.option.vram.enabled": "启用 VRAM 优化",
