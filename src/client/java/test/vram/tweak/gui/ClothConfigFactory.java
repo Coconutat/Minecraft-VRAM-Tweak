@@ -60,6 +60,14 @@ public class ClothConfigFactory {
                 .requireRestart()
                 .build());
 
+        vram.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.shadowCapEnabled"),
+                        cfg.vram.shadowCapEnabled)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.shadowCapEnabled.tooltip"))
+                .setSaveConsumer(v -> cfg.vram.shadowCapEnabled = v)
+                .build());
+
         vram.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.shadowMapMaxSize"),
                         cfg.vram.shadowMapMaxSize)

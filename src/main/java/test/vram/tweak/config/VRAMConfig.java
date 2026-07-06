@@ -121,6 +121,9 @@ public class VRAMConfig {
         @SerializedName("enabled")
         public boolean enabled = false;
 
+        @SerializedName("shadowCapEnabled")
+        public boolean shadowCapEnabled = false;
+
         @SerializedName("shadowMapMaxSize")
         public int shadowMapMaxSize = 1024;
 

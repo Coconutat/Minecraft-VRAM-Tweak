@@ -29,6 +29,7 @@ public class VRAMOptimizer {
     private static final int GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX = 0x9049;
 
     private static boolean enabled;
+    private static boolean shadowCapEnabled;
     private static boolean formatDownscale;
     private static boolean depthDownscale;
     private static int maxShadowSize;
@@ -70,6 +71,7 @@ public class VRAMOptimizer {
     public static void reload() {
         var cfg = VRAMConfig.getInstance().vram;
         enabled = cfg.enabled;
+        shadowCapEnabled = cfg.shadowCapEnabled;
         formatDownscale = cfg.formatDownscale;
         depthDownscale = cfg.depthDownscale;
         maxShadowSize = cfg.shadowMapMaxSize;
@@ -253,11 +255,11 @@ public class VRAMOptimizer {
         return Math.min(size, maxShadowSize);
     }
 
-    /** Only cap if enabled AND the texture exceeds maxShadowSize AND is square (shadow maps are always square). */
+    /** Only cap if master AND shadowCapEnabled both ON, and texture exceeds maxShadowSize, and is square (shadow maps are always square). */
     public static boolean shouldCap(int width, int height) {
-        boolean result = enabled && width == height && width > maxShadowSize;
-        LOGGER.debug("[TRACE] shouldCap({}x{}) = {} (enabled={}, maxShadowSize={})",
-                width, height, result, enabled, maxShadowSize);
+        boolean result = enabled && shadowCapEnabled && width == height && width > maxShadowSize;
+        LOGGER.debug("[TRACE] shouldCap({}x{}) = {} (enabled={}, shadowCap={}, maxShadowSize={})",
+                width, height, result, enabled, shadowCapEnabled, maxShadowSize);
         return result;
     }
 
