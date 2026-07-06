@@ -2,10 +2,9 @@
   "vramtweak.gui.title": "VRAM Tweak",
   "vramtweak.gui.restartRequired": "§c必须重启游戏才能更改 VRAM 优化状态。",
   "vramtweak.gui.restartRequired.title": "§c§l确认更改 VRAM 优化状态",
-  "vramtweak.gui.restartRequired.message": "§cVRAM 优化状态已更改！\n\n§7此选项需要 §e重启游戏 §7才能生效。\n§7当前已加载的纹理不会被动态还原。\n\n§c你确定要更改吗？",
+  "vramtweak.gui.restartRequired.message": "§cVRAM 优化状态已更改！§7此选项需要 §e重启游戏 §7才能生效。§7当前已加载的纹理不会被动态还原。§c你确定要更改吗？",
   "vramtweak.gui.restartRequired.confirm": "§a我确认",
   "vramtweak.gui.restartRequired.cancel": "取消",
-
   "vramtweak.gui.category.vram": "VRAM 优化",
   "vramtweak.gui.option.vram.enabled": "启用 VRAM 优化",
   "vramtweak.gui.option.vram.enabled.tooltip": "总开关。关闭后所有 VRAM 优化不生效。\n此选项更改后将在下次启动游戏时生效——本模组在纹理创建时拦截，已加载的纹理不会动态还原。",
@@ -19,7 +18,6 @@
   "vramtweak.gui.option.budgetTracking.tooltip": "需开启「VRAM 优化」总开关。\n实时监控显存使用量。超标时在日志中告警。",
   "vramtweak.gui.option.budgetWarningPercent": "预算告警阈值 (%)",
   "vramtweak.gui.option.budgetWarningPercent.tooltip": "需开启「VRAM 优化」总开关。\n显存使用率超过此值触发告警 (50–95)。\n▲ 增大 = 仅在更接近上限时告警。\n▼ 减小 = 更早收到预警，有更多时间反应。\n默认 80%。",
-
   "vramtweak.gui.category.texture": "纹理优化",
   "vramtweak.gui.option.animationLimit": "动画帧限制",
   "vramtweak.gui.option.animationLimit.tooltip": "开启后限制动画纹理最大帧数。\n水流/熔岩/闪烁纹理帧数减少 → 降低 VRAM 占用。\n需配合「最大动画帧数」设置。",
@@ -29,7 +27,6 @@
   "vramtweak.gui.option.atlasSizeLimit.tooltip": "开启后限制方块/物品纹理图集分辨率。\n高清材质包 (8192px+) 图集消耗大量显存。\n实测：blocks.png 16384→4096 单张节省约 240MB。\n需配合「最大图集尺寸」设置。",
   "vramtweak.gui.option.maxAtlasSize": "最大图集尺寸 (px)",
   "vramtweak.gui.option.maxAtlasSize.tooltip": "纹理图集分辨率上限 (1024–16384)。超过则截断。\n▲ 增大 = 材质更清晰，但单张图集可能占用 240+ MB。\n▼ 减小 = 大幅节省显存，可能略微模糊（实测 4096 几乎无区别）。\n默认 4096。",
-
   "vramtweak.gui.category.governor": "VRAM 调速器",
   "vramtweak.gui.option.governor.enabled": "启用 VRAM 调速器",
   "vramtweak.gui.option.governor.enabled.tooltip": "显存紧张时自动降低渲染距离 → 释放 VRAM。\n显存恢复后逐步还原 → 不影响体验。\n需配合回差/最低距离/冷却时间设置。",
@@ -39,19 +36,16 @@
   "vramtweak.gui.option.minDistance.tooltip": "调速器压缩渲染距离的下限 (2–16)。\n▲ 增大 = 远处仍可见，但显存节省更少。\n▼ 减小 = 极限情况显存节省更多，远处景物消失。\n默认 4。",
   "vramtweak.gui.option.cooldownTicks": "冷却时间 (ticks)",
   "vramtweak.gui.option.cooldownTicks.tooltip": "两次调速操作的最小间隔 (20–600 tick)。\n▲ 增大 = 切换更平滑，但响应更慢。\n▼ 减小 = 反应更快，但渲染距离可能频繁变化。\n默认 100 tick (5 秒)。",
-
   "vramtweak.gui.category.particle": "粒子",
   "vramtweak.gui.option.particle.enabled": "启用粒子上限",
   "vramtweak.gui.option.particle.enabled.tooltip": "全局粒子数量安全网。",
   "vramtweak.gui.option.maxParticles": "最大粒子数",
   "vramtweak.gui.option.maxParticles.tooltip": "全局同时可见粒子数上限 (200–10000)。\n▲ 增大 = 粒子效果更丰富，GPU fill-rate 压力增加。\n▼ 减小 = 降低 GPU 负载，粒子密集场景不再卡顿。\n默认 2000。",
-
   "vramtweak.gui.category.cas": "FSR CAS 锐化",
   "vramtweak.gui.option.cas.enabled": "启用 CAS 锐化",
   "vramtweak.gui.option.cas.enabled.tooltip": "AMD FidelityFX 对比度自适应锐化。\n在世界渲染后、HUD 渲染前应用。\n可恢复因分辨率缩放或压缩损失的细节。\n零显存开销，GPU 性能几乎无影响。",
   "vramtweak.gui.option.cas.sharpness": "锐化强度",
   "vramtweak.gui.option.cas.sharpness.tooltip": "锐化强度 (0.0–1.0) — AMD FidelityFX CAS 1.2。\n▲ 0.2–0.4 = 轻微锐化（AMD 推荐 0.2）。\n▲ 0.5–0.7 = 明显可见。\n▲ 0.8–1.0 = 高强度锐化，可能出现光晕伪影。\n▼ 0.0 = 关闭（无效果）。",
-
   "vramtweak.gui.category.hud": "HUD 叠加层",
   "vramtweak.gui.category.diagnostic": "诊断",
   "vramtweak.gui.option.verificationLog": "验证日志",
@@ -81,7 +75,6 @@
   "vramtweak.gui.option.showBudget.tooltip": "显示显存预算告警状态与峰值使用率。",
   "vramtweak.gui.option.bgAlpha": "背景透明度 (%)",
   "vramtweak.gui.option.bgAlpha.tooltip": "HUD 半透明黑色背景的透明度。",
-
   "vramtweak.gui.category.info": "ℹ 信息",
   "vramtweak.gui.option.gpu": "GPU",
   "vramtweak.gui.option.gpu.pending": "等待检测...",
@@ -93,8 +86,7 @@
   "vramtweak.gui.option.fps.tooltip": "当前帧率。只读。",
   "vramtweak.gui.option.textureAllocs": "纹理分配数",
   "vramtweak.gui.option.textureAllocs.tooltip": "累计 GPU 纹理创建次数。只读。",
-
-  "vramtweak.command.stats": "§b=== vram-tweak 统计 ===\n§fFPS: §a%.1f §f| FT: §a%.2fms §f| 帧数: §a%d\n§fVRAM: §a%d §f/ §a%d MB §f(%.0f%%)\n§f纹理: §a+%d §f/ §c-%d\n§f堆内存: §a%d §f/ §a%d MB",
+  "vramtweak.command.stats": "§b=== vram-tweak 统计 ===§f \nFPS: §a%.1f §f| FT: §a%.2fms §f| 帧数: §a%d§f \nVRAM: §a%d §f/ §a%d MB §f(%.0f%%)§f \n纹理: §a+%d §f/ §c-%d§f \n堆内存: §a%d §f/ §a%d MB",
   "vramtweak.command.dump.success": "§a指标已导出至: %s",
   "vramtweak.command.dump.failed": "§c导出失败: %s",
   "vramtweak.command.hud.toggle": "§aHUD §2开",
@@ -105,10 +97,9 @@
   "vramtweak.command.benchmark.phase1.collect": "§7阶段 1: OFF — 收集 %ds...",
   "vramtweak.command.benchmark.phase2.warmup": "§7阶段 2: ON — 预热 %ds...",
   "vramtweak.command.benchmark.phase2.collect": "§7阶段 2: ON — 收集 %ds...",
-  "vramtweak.command.benchmark.results": "§b=== 基准测试结果 ===\n§f          §7OFF§f         §aON\n§fFPS avg:  §7%.1f§f     §a%.1f\n§fFPS min:  §7%.1f§f     §a%.1f\n§fFPS max:  §7%.1f§f     §a%.1f\n§fVRAM avg: §7%dMB§f     §a%dMB",
+  "vramtweak.command.benchmark.results": "§b=== 基准测试结果 ===§f \n          §7OFF§f         §aON§f \nFPS avg:  §7%.1f§f     §a%.1f§f \nFPS min:  §7%.1f§f     §a%.1f§f \nFPS max:  §7%.1f§f     §a%.1f§f \nVRAM avg: §7%dMB§f     §a%dMB",
   "vramtweak.command.benchmark.interrupted": "§c基准测试中断。",
   "vramtweak.command.benchmark.failed": "§c基准测试失败: %s",
-
   "vramtweak.hud.fps": "§bFPS:",
   "vramtweak.hud.frametime": "§bFT:",
   "vramtweak.hud.vram": "§b显存:",
@@ -117,6 +108,5 @@
   "vramtweak.hud.downscale": "§b降精度:",
   "vramtweak.hud.budget": "§b预算:",
   "vramtweak.hud.budget.ok": "§a正常",
-
   "vramtweak.client.registered": "客户端已注册。 /vramtweak stats|dump|hud|benchmark"
 }
