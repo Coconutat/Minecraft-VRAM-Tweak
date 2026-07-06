@@ -1,6 +1,10 @@
 package test.vram.tweak.vram;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +44,23 @@ public class VRAMOptimizer {
     // budget warning cooldown
     private static boolean overBudget;
     private static int cooldown;
+
+    // GL extension cache
+    private static Set<String> checkedExtensions = new HashSet<>();
+    private static Set<String> availableExtensions = new HashSet<>();
+
+    private static boolean hasGLExt(String ext) {
+        if (checkedExtensions.contains(ext)) return availableExtensions.contains(ext);
+        checkedExtensions.add(ext);
+        int count = GL11.glGetInteger(GL30.GL_NUM_EXTENSIONS);
+        for (int i = 0; i < count; i++) {
+            if (ext.equals(GL30.glGetStringi(GL11.GL_EXTENSIONS, i))) {
+                availableExtensions.add(ext);
+                return true;
+            }
+        }
+        return false;
+    }
 
     public static void initialize() {
         reload();
@@ -96,17 +117,23 @@ public class VRAMOptimizer {
 
     // Intel also supports GL_ATI_meminfo on many iGPUs; fallback to same path.
     private static long queryFreeVRAM_INTEL() {
-        // ponytail: try NVX first (modern Intel Arc), fallback to ATI
-        try {
-            int[] result = new int[1];
-            GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
-            if (result[0] > 0) return result[0] & 0xFFFFFFFFL;
-        } catch (Exception ignored) {}
-        try {
-            int[] result = new int[4];
-            GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-            return result[0] & 0xFFFFFFFFL;
-        } catch (Exception e) { return -1; }
+        // ponytail: try NVX first (modern Intel Arc DG2+), fallback to ATI
+        if (hasGLExt("GL_NVX_gpu_memory_info")) {
+            try {
+                int[] result = new int[1];
+                GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
+                long kb = result[0] & 0xFFFFFFFFL;
+                if (kb > 0) return kb;
+            } catch (Exception ignored) {}
+        }
+        if (hasGLExt("GL_ATI_meminfo")) {
+            try {
+                int[] result = new int[4];
+                GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
+                return result[0] & 0xFFFFFFFFL;
+            } catch (Exception e) { return -1; }
+        }
+        return -1;
     }
 
     /** GPU-aware total VRAM in MB. */
@@ -118,11 +145,22 @@ public class VRAMOptimizer {
                     long freeKB = queryFreeVRAM_AMD();
                     yield Math.max(freeKB, 8192L * 1024) / 1024; // KB → MB
                 }
-                case NVIDIA, INTEL -> {
+                case NVIDIA -> {
                     int[] result = new int[1];
                     GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
                     long kb = result[0] & 0xFFFFFFFFL;
                     yield kb / 1024; // KB → MB
+                }
+                case INTEL -> {
+                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
+                        int[] result = new int[1];
+                        GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
+                        long kb = result[0] & 0xFFFFFFFFL;
+                        if (kb > 0) yield kb / 1024;
+                    }
+                    // Fallback: estimate from free KB
+                    long freeKB = queryFreeVRAM_INTEL();
+                    yield freeKB > 0 ? Math.max(freeKB, 2048L * 1024) / 1024 : 0L;
                 }
                 default -> 0L;
             };
