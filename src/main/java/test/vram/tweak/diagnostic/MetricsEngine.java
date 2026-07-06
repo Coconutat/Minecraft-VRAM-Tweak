@@ -2,9 +2,12 @@ package test.vram.tweak.diagnostic;
 
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL30;
 
 import test.vram.tweak.gpu.GPUDetector;
 
@@ -72,6 +75,22 @@ public class MetricsEngine {
     private static volatile long lastVramUsedMB;
     private static volatile long lastVramTotalMB;
     private static long lastVramPollTime;
+    private static Set<String> checkedExtensions = new HashSet<>();
+    private static Set<String> availableExtensions = new HashSet<>();
+
+    /** Check GL extension availability, cached. */
+    private static boolean hasGLExt(String ext) {
+        if (checkedExtensions.contains(ext)) return availableExtensions.contains(ext);
+        checkedExtensions.add(ext);
+        int count = GL11.glGetInteger(GL30.GL_NUM_EXTENSIONS);
+        for (int i = 0; i < count; i++) {
+            if (ext.equals(GL30.glGetStringi(GL11.GL_EXTENSIONS, i))) {
+                availableExtensions.add(ext);
+                return true;
+            }
+        }
+        return false;
+    }
 
     static {
         int size = nextPowerOfTwo(60);
@@ -153,13 +172,37 @@ public class MetricsEngine {
                     if (freeKB > 128L * 1024 * 1024) { return; }
                     totalKB = Math.max(freeKB, 8192L * 1024); // can't query total on AMD, assume 8GB+
                 }
-                case NVIDIA, INTEL -> {
+                case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
                     GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
                     GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
                     freeKB = freeVal[0] & 0xFFFFFFFFL;
                     totalKB = totalVal[0] & 0xFFFFFFFFL;
                     if (freeKB > 128L * 1024 * 1024 || totalKB > 128L * 1024 * 1024) { return; }
+                }
+                case INTEL -> {
+                    // NVX first (modern Intel Arc DG2+), fallback ATI (some older iGPUs)
+                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
+                        int[] freeVal = new int[1], totalVal = new int[1];
+                        GL11.glGetIntegerv(0x9049, freeVal);
+                        GL11.glGetIntegerv(0x9047, totalVal);
+                        freeKB = freeVal[0] & 0xFFFFFFFFL;
+                        totalKB = totalVal[0] & 0xFFFFFFFFL;
+                        if (freeKB > 0 && totalKB > 0
+                                && freeKB <= 128L * 1024 * 1024
+                                && totalKB <= 128L * 1024 * 1024) {
+                            break; // use NVX values
+                        }
+                    }
+                    if (hasGLExt("GL_ATI_meminfo")) {
+                        int[] vals = new int[4];
+                        GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
+                        freeKB = vals[0] & 0xFFFFFFFFL;
+                        if (freeKB <= 0 || freeKB > 128L * 1024 * 1024) { return; }
+                        totalKB = Math.max(freeKB, 2048L * 1024);
+                    } else {
+                        return; // no VRAM query extension available
+                    }
                 }
                 default -> { return; } // OTHER — no VRAM tracking
             }

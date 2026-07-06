@@ -7,6 +7,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
@@ -25,6 +28,22 @@ public class DiagnosticLogger {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/diag");
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static boolean done;
+    private static Set<String> checkedExtensions = new HashSet<>();
+    private static Set<String> availableExtensions = new HashSet<>();
+
+    /** Check GL extension availability, cached. */
+    private static boolean hasExtension(String ext) {
+        if (checkedExtensions.contains(ext)) return availableExtensions.contains(ext);
+        checkedExtensions.add(ext);
+        int count = GL11.glGetInteger(GL30.GL_NUM_EXTENSIONS);
+        for (int i = 0; i < count; i++) {
+            if (ext.equals(GL30.glGetStringi(GL11.GL_EXTENSIONS, i))) {
+                availableExtensions.add(ext);
+                return true;
+            }
+        }
+        return false;
+    }
 
     public static void run() {
         if (done) return;
@@ -36,23 +55,7 @@ public class DiagnosticLogger {
         sb.append("=== vram-tweak Diagnostic ===\n");
         sb.append("Time: ").append(LocalDateTime.now().format(FMT)).append("\n\n");
 
-        // System
-        sb.append("[System]\n");
-        sb.append("  OS: ").append(System.getProperty("os.name"))
-          .append(" ").append(System.getProperty("os.version")).append("\n");
-        sb.append("  Java: ").append(System.getProperty("java.version"))
-          .append(" (").append(System.getProperty("java.vendor")).append(")\n");
-        sb.append("  Max heap: ").append(Runtime.getRuntime().maxMemory() / 1024 / 1024).append(" MB\n\n");
-
-        // GPU
-        sb.append("[GPU]\n");
-        sb.append("  Detected: ").append(GPUDetector.getGPU()).append("\n");
-        sb.append("  Vendor: ").append(GPUDetector.getVendor()).append("\n");
-        sb.append("  Renderer: ").append(GPUDetector.getRenderer()).append("\n");
-        sb.append("  GL Version: ").append(GL11.glGetString(GL11.GL_VERSION)).append("\n");
-        sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
-
-        // VRAM query
+        // System (GPU-aware)
         try {
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
@@ -60,12 +63,39 @@ public class DiagnosticLogger {
                     GL11.glGetIntegerv(0x87FB, vals);
                     sb.append("  VRAM free (ATI_meminfo): ").append(vals[0] & 0xFFFFFFFFL).append(" KB\n");
                 }
-                case NVIDIA, INTEL -> {
+                case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
                     GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
                     GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
                     sb.append("  VRAM free (NVX_meminfo): ").append(freeVal[0] & 0xFFFFFFFFL).append(" KB\n");
                     sb.append("  VRAM total (NVX_meminfo): ").append(totalVal[0] & 0xFFFFFFFFL).append(" KB\n");
+                }
+                case INTEL -> {
+                    boolean queried = false;
+                    if (hasExtension("GL_NVX_gpu_memory_info")) {
+                        int[] freeVal = new int[1], totalVal = new int[1];
+                        GL11.glGetIntegerv(0x9049, freeVal);
+                        GL11.glGetIntegerv(0x9047, totalVal);
+                        long freeKB = freeVal[0] & 0xFFFFFFFFL;
+                        long totalKB = totalVal[0] & 0xFFFFFFFFL;
+                        if (freeKB > 0 && totalKB > 0) {
+                            sb.append("  VRAM free (NVX_meminfo): ").append(freeKB).append(" KB\n");
+                            sb.append("  VRAM total (NVX_meminfo): ").append(totalKB).append(" KB\n");
+                            queried = true;
+                        }
+                    }
+                    if (!queried && hasExtension("GL_ATI_meminfo")) {
+                        int[] vals = new int[4];
+                        GL11.glGetIntegerv(0x87FB, vals);
+                        long freeKB = vals[0] & 0xFFFFFFFFL;
+                        if (freeKB > 0) {
+                            sb.append("  VRAM free (ATI_meminfo): ").append(freeKB).append(" KB\n");
+                            queried = true;
+                        }
+                    }
+                    if (!queried) {
+                        sb.append("  VRAM query: no supported extension (GL_NVX_gpu_memory_info / GL_ATI_meminfo)\n");
+                    }
                 }
                 default -> {
                     sb.append("  VRAM query: unavailable (GPU type not supported)\n");
@@ -74,6 +104,8 @@ public class DiagnosticLogger {
         } catch (Exception e) {
             sb.append("  VRAM query: unavailable\n");
         }
+
+        sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
 
         // GL extensions (use glGetStringi for core profile compatibility)
         sb.append("  GL Extensions: ");
