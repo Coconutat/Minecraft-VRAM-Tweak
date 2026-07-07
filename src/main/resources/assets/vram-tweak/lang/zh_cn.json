@@ -8,6 +8,8 @@
   "vramtweak.gui.category.vram": "VRAM 优化",
   "vramtweak.gui.option.vram.enabled": "启用 VRAM 优化",
   "vramtweak.gui.option.vram.enabled.tooltip": "总开关。关闭后所有 VRAM 优化不生效。\n此选项更改后将在下次启动游戏时生效——本模组在纹理创建时拦截，已加载的纹理不会动态还原。",
+  "vramtweak.gui.option.shadowCapEnabled": "启用 Shadow Map 上限",
+  "vramtweak.gui.option.shadowCapEnabled.tooltip": "需开启「启用 VRAM 优化」总开关。\n关闭后阴影以原始分辨率渲染。\n开启后阴影图尺寸受下方上限控制。\n关闭此项不节省阴影显存，但保留最高阴影质量。",
   "vramtweak.gui.option.shadowMapMaxSize": "Shadow Map 上限 (px)",
   "vramtweak.gui.option.shadowMapMaxSize.tooltip": "需开启「VRAM 优化」总开关。\n限制光影阴影贴图最大分辨率 (256–4096)。\n▲ 增大 = 阴影更清晰，但显存占用更多。\n▼ 减小 = 显著节省显存，阴影边缘略微柔和。\n默认 1024。",
   "vramtweak.gui.option.formatDownscale": "颜色缓冲降精度",

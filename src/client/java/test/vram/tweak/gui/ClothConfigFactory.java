@@ -58,12 +58,22 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
                 .build());
 
+        vram.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.shadowCapEnabled"),
+                        cfg.vram.shadowCapEnabled)
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("vramtweak.gui.option.shadowCapEnabled.tooltip"))
+                .setRequirement(() -> cfg.vram.enabled)
+                .setSaveConsumer(v -> { cfg.vram.shadowCapEnabled = v; })
+                .build());
+
         vram.addEntry(eb.startIntField(
                         Component.translatable("vramtweak.gui.option.shadowMapMaxSize"),
                         cfg.vram.shadowMapMaxSize)
                 .setDefaultValue(1024)
                 .setMin(256).setMax(4096)
                 .setTooltip(Component.translatable("vramtweak.gui.option.shadowMapMaxSize.tooltip"))
+                .setRequirement(() -> cfg.vram.enabled && cfg.vram.shadowCapEnabled)
                 .setSaveConsumer(v -> cfg.vram.shadowMapMaxSize = v)
                 .build());
 
