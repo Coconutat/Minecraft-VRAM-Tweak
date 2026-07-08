@@ -14,6 +14,7 @@ import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
 import test.vram.tweak.diagnostic.VramFrameCounter;
+import test.vram.tweak.gpu.GPUDetector;
 
 /**
  * HUD overlay for vram-tweak. Singleton — shared by tick and render mixins.
@@ -63,13 +64,24 @@ public class VramTweakHud {
             textList.add(Component.literal(label + " §f" + String.format("%.1fms", fc.getAvgFrameTimeMs())));
         }
 
+        // ---- GPU line ----
+        if (hud.showGpu) {
+            textList.add(Component.literal("§bGPU:§f " + GPUDetector.getRenderer()));
+        }
+
         // ---- VRAM line ----
         if (hud.showVram) {
             long total = MetricsEngine.getVramTotalMB();
             int pct = total > 0 ? (int)(currentVramMB * 100 / total) : 0;
             String color = pct >= 80 ? "§c" : pct >= 60 ? "§e" : "§a";
             var label = Component.translatable("vramtweak.hud.vram").getString();
-            textList.add(Component.literal(label + " " + color + currentVramMB + "§f/§b" + total + "MB §f(" + color + pct + "%§f)"));
+            if (GPUDetector.getGPU().isAMD() && total > 0) {
+                // AMD: show only used MB + percentage (total is approximated)
+                textList.add(Component.literal(label + " " + color + currentVramMB + "MB §f(" + color + pct + "%§f)"));
+            } else {
+                // NVIDIA / Intel: show used/totalMB (percentage)
+                textList.add(Component.literal(label + " " + color + currentVramMB + "§f/§b" + total + "MB §f(" + color + pct + "%§f)"));
+            }
         }
 
         // ---- Atlas stats ----

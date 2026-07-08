@@ -229,6 +229,9 @@ public class VRAMConfig {
         @SerializedName("showBudget")
         public boolean showBudget = true;
 
+        @SerializedName("showGpu")
+        public boolean showGpu = true;
+
         @SerializedName("showDrawCalls")
         public boolean showDrawCalls = false;
 

@@ -55,6 +55,11 @@ public class DiagnosticLogger {
         sb.append("=== vram-tweak Diagnostic ===\n");
         sb.append("Time: ").append(LocalDateTime.now().format(FMT)).append("\n\n");
 
+        // GPU info
+        sb.append("  GPU: ").append(GPUDetector.getGPU()).append("\n");
+        sb.append("  Vendor: ").append(GPUDetector.getVendor()).append("\n");
+        sb.append("  Renderer: ").append(GPUDetector.getRenderer()).append("\n");
+
         // System (GPU-aware)
         try {
             switch (GPUDetector.getGPU()) {

@@ -77,6 +77,7 @@ public class MetricsEngine {
     private static long lastVramPollTime;
     private static Set<String> checkedExtensions = new HashSet<>();
     private static Set<String> availableExtensions = new HashSet<>();
+    private static long calibrationTotalKB;
 
     /** Check GL extension availability, cached. */
     private static boolean hasGLExt(String ext) {
@@ -165,12 +166,31 @@ public class MetricsEngine {
             long totalKB;
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
+                    // 1. Try GL_NVX_gpu_memory_info (many AMD drivers expose it)
+                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
+                        int[] freeVal = new int[1], totalVal = new int[1];
+                        GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
+                        GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
+                        freeKB = freeVal[0] & 0xFFFFFFFFL;
+                        totalKB = totalVal[0] & 0xFFFFFFFFL;
+                        if (freeKB > 0 && totalKB > 0
+                                && freeKB <= 128L * 1024 * 1024
+                                && totalKB <= 128L * 1024 * 1024) {
+                            calibrationTotalKB = totalKB;
+                            break; // use NVX values
+                        }
+                    }
+                    // 2. Fallback to ATI + calibration (rounded to known VRAM size)
                     int[] vals = new int[4];
                     GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
                     freeKB = vals[0] & 0xFFFFFFFFL;
-                    // Sanity check: free VRAM must be 0–128 GB. AMD drivers may return garbage.
                     if (freeKB > 128L * 1024 * 1024) { return; }
-                    totalKB = Math.max(freeKB, 8192L * 1024); // can't query total on AMD, assume 8GB+
+                    if (calibrationTotalKB > 0) {
+                        totalKB = calibrationTotalKB;
+                    } else {
+                        calibrationTotalKB = freeKB;
+                        totalKB = test.vram.tweak.vram.VRAMOptimizer.roundTotalMB(freeKB / 1024) * 1024L;
+                    }
                 }
                 case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];

@@ -12,6 +12,7 @@ import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
 import test.vram.tweak.gpu.GPUDetector;
+import test.vram.tweak.gpu.GPUType;
 
 /**
  * VRAM optimization logic + budget tracking, merged.
@@ -49,6 +50,32 @@ public class VRAMOptimizer {
     // GL extension cache
     private static Set<String> checkedExtensions = new HashSet<>();
     private static Set<String> availableExtensions = new HashSet<>();
+
+    // AMD calibration: store first freeKB as total VRAM estimate
+    private static long calibrationTotalKB;
+
+    /** Known GPU VRAM sizes (MB) for rounding AMD calibration. */
+    private static final long[] KNOWN_VRAM_SIZES = {
+        1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192,
+        10240, 12288, 16384, 24576, 32768
+    };
+
+    /**
+     * Round an estimated total to the nearest known VRAM size
+     * and apply a safety margin (~2.5 %) for driver overhead.
+     */
+    public static long roundTotalMB(long estimatedMB) {
+        long closest = KNOWN_VRAM_SIZES[0];
+        long minDiff = Long.MAX_VALUE;
+        for (long size : KNOWN_VRAM_SIZES) {
+            long diff = Math.abs(estimatedMB - size);
+            if (diff < minDiff) { minDiff = diff; closest = size; }
+        }
+        // Reserve ~2.5 % for driver overhead so budget tracking is conservative
+        long usable = closest * 975 / 1000;
+        LOGGER.debug("roundTotalMB: {} → closest={} usable={}", estimatedMB, closest, usable);
+        return usable;
+    }
 
     private static boolean hasGLExt(String ext) {
         if (checkedExtensions.contains(ext)) return availableExtensions.contains(ext);
@@ -142,10 +169,19 @@ public class VRAMOptimizer {
         try {
             return switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    // GL_ATI_meminfo only reports free VRAM — total not directly queryable.
-                    // Use conservative estimate: max(freeKB, 8GB).
+                    // 1. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
+                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
+                        int[] result = new int[1];
+                        GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
+                        long kb = result[0] & 0xFFFFFFFFL;
+                        if (kb > 0) { calibrationTotalKB = kb; yield kb / 1024; }
+                    }
+                    // 2. Use calibration value rounded to nearest known VRAM size
+                    if (calibrationTotalKB > 0) yield roundTotalMB(calibrationTotalKB / 1024);
+                    // 3. Calibrate now
                     long freeKB = queryFreeVRAM_AMD();
-                    yield Math.max(freeKB, 8192L * 1024) / 1024; // KB → MB
+                    if (freeKB > 0) { calibrationTotalKB = freeKB; yield roundTotalMB(freeKB / 1024); }
+                    yield 0L;
                 }
                 case NVIDIA -> {
                     int[] result = new int[1];
@@ -180,6 +216,16 @@ public class VRAMOptimizer {
 
     /** Called each frame. Logs warnings when VRAM exceeds threshold. */
     public static void onFrameEnd() {
+        // Calibrate total VRAM estimate on first frame (freeKB ≈ total at startup)
+        if (calibrationTotalKB == 0 && GPUDetector.getGPU() == GPUType.AMD) {
+            long freeKB = queryFreeVRAM_AMD();
+            if (freeKB > 0) {
+                calibrationTotalKB = freeKB;
+                long rounded = roundTotalMB(freeKB / 1024);
+                LOGGER.info("VRAM calibration (AMD): free={} MB → rounded total={} MB", freeKB / 1024, rounded);
+            }
+        }
+
         if (!enabled || !budgetTracking) {
             return;
         }

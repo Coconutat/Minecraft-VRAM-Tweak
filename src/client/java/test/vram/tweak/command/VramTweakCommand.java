@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import test.vram.tweak.VRAMTweak;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
+import test.vram.tweak.gpu.GPUDetector;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
@@ -42,11 +43,22 @@ public class VramTweakCommand {
         long heapUsed = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
         long heapMax = rt.maxMemory() / (1024 * 1024);
 
-        src.sendFeedback(Component.translatable(
-                "vramtweak.command.stats",
-                fps, ft, frames, vram, vramTotal,
-                vramTotal > 0 ? vram * 100f / vramTotal : 0,
-                allocs, frees, heapUsed, heapMax));
+        String gpuLine = "§bGPU:§f " + GPUDetector.getRenderer()
+                + " §7(" + GPUDetector.getVendor() + ")";
+        src.sendFeedback(Component.literal(gpuLine));
+        if (GPUDetector.getGPU().isAMD()) {
+            src.sendFeedback(Component.translatable(
+                    "vramtweak.command.stats.amd",
+                    fps, ft, frames, vram,
+                    vramTotal > 0 ? vram * 100f / vramTotal : 0,
+                    allocs, frees, heapUsed, heapMax));
+        } else {
+            src.sendFeedback(Component.translatable(
+                    "vramtweak.command.stats",
+                    fps, ft, frames, vram, vramTotal,
+                    vramTotal > 0 ? vram * 100f / vramTotal : 0,
+                    allocs, frees, heapUsed, heapMax));
+        }
         return 1;
     }
 
