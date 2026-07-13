@@ -23,6 +23,12 @@ However, as development progressed, I discovered that VRAM was actually the bott
 This mod is theoretically universal across GPU vendors.  
 
 For users with GPUs that have 4GB or 6GB of video memory, this can reduce stuttering caused by insufficient video memory.  
+  
+**The mod is under active development. If you don't see any files on the download page, it means it's still under review or undergoing bug fixes. The mod is currently in beta.**  
+
+**After updating to the latest AMD GPU driver(26.6.4), VRAM usage became more normal.**    
+
+**Therefore, this mod will have to wait until the Vulkan API is released to see what else it can do.**  
 ***
 
 ## What It Does
