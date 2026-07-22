@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.gpu.GPUType;
 
@@ -170,17 +171,32 @@ public class VRAMOptimizer {
         try {
             return switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    // 1. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
+                    // Query free VRAM early — used as hint for model lookup disambiguation
+                    long freeKB = queryFreeVRAM_AMD();
+                    long freeMB = freeKB > 0 ? freeKB / 1024 : 0;
+
+                    // 1. Model-based lookup (most accurate)
+                    var info = GPUDetector.getGPUInfo();
+                    if (info != null) {
+                        long knownMB = AmdVramLookup.lookup(info.getAmdArch(), info.getAmdModelName(), freeMB);
+                        if (knownMB > 0) {
+                            // Reserve ~2.5% for driver overhead, same as roundTotalMB
+                            long usable = knownMB * 975 / 1000;
+                            if (calibrationTotalKB == 0) calibrationTotalKB = usable * 1024;
+                            yield usable;
+                        }
+                    }
+                    // 2. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
                     if (hasGLExt("GL_NVX_gpu_memory_info")) {
                         int[] result = new int[1];
                         GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
                         long kb = result[0] & 0xFFFFFFFFL;
                         if (kb > 0) { calibrationTotalKB = kb; yield kb / 1024; }
                     }
-                    // 2. Use calibration value rounded to nearest known VRAM size
+                    // 3. Use calibration value rounded to nearest known VRAM size
                     if (calibrationTotalKB > 0) yield roundTotalMB(calibrationTotalKB / 1024);
-                    // 3. Calibrate now
-                    long freeKB = queryFreeVRAM_AMD();
+                    // 4. Calibrate now (reuse freeKB from hint query above)
+                    if (freeKB <= 0) freeKB = queryFreeVRAM_AMD();
                     if (freeKB > 0) { calibrationTotalKB = freeKB; yield roundTotalMB(freeKB / 1024); }
                     yield 0L;
                 }

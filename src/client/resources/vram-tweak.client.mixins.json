@@ -14,7 +14,8 @@
 		"MixinParticleEngine_Cap",
 		"MixinGui_Hud",
 		"MixinMinecraft_Hud",
-		"MixinScreen_RestartWarning"
+		"MixinScreen_RestartWarning",
+		"MixinGameRenderer_PerfMonitor"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -53,3 +53,4 @@ Docs
 .continue
 AGENT*.md
 CONTEXT*.md
+/scripts

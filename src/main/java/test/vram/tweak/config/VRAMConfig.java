@@ -212,6 +212,9 @@ public class VRAMConfig {
         @SerializedName("showGpu")
         public boolean showGpu = true;
 
+        @SerializedName("showGpuClocks")
+        public boolean showGpuClocks = true;
+
         @SerializedName("showDrawCalls")
         public boolean showDrawCalls = false;
 
