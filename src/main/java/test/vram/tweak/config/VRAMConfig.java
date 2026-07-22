@@ -41,6 +41,9 @@ public class VRAMConfig {
     @SerializedName("particle")
     public ParticleSection particle = new ParticleSection();
 
+    @SerializedName("experimental")
+    public ExperimentalSection experimental = new ExperimentalSection();
+
     // ---- singleton ----
 
     private static VRAMConfig instance;
@@ -243,6 +246,16 @@ public class VRAMConfig {
 
         @SerializedName("maxParticles")
         public int maxParticles = 2000;
+    }
+
+    // ---- Experimental section (AMD-specific features) ----
+
+    public static class ExperimentalSection {
+        @SerializedName("pinnedMemory")
+        public boolean pinnedMemory = false;
+
+        @SerializedName("pinnedMemoryMinSize")
+        public int pinnedMemoryMinSize = 1024; // minimum texture size (px) to use pinned PBO
     }
 
 }

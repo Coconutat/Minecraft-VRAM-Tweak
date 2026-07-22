@@ -205,6 +205,26 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.particle.maxParticles = v)
                 .build());
 
+        // ---- Experimental (AMD-specific) ----
+        var experimental = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.experimental"));
+
+        experimental.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
+                        cfg.experimental.pinnedMemory)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
+                .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
+                .build());
+
+        experimental.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
+                        cfg.experimental.pinnedMemoryMinSize)
+                .setDefaultValue(1024)
+                .setMin(256).setMax(8192)
+                .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
+                .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
+                .build());
+
         // ---- HUD ----
         var hud = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.hud"));
 
