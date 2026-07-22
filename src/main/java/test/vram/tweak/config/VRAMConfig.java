@@ -41,9 +41,6 @@ public class VRAMConfig {
     @SerializedName("particle")
     public ParticleSection particle = new ParticleSection();
 
-    @SerializedName("cas")
-    public CASSection cas = new CASSection();
-
     // ---- singleton ----
 
     private static VRAMConfig instance;
@@ -248,13 +245,4 @@ public class VRAMConfig {
         public int maxParticles = 2000;
     }
 
-    // ---- CAS section ----
-
-    public static class CASSection {
-        @SerializedName("enabled")
-        public boolean enabled = false;
-
-        @SerializedName("sharpness")
-        public float sharpness = 0.2f;  // 0.0–1.0, AMD default ~0.2
-    }
 }

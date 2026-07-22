@@ -205,26 +205,6 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.particle.maxParticles = v)
                 .build());
 
-        // ---- CAS ----
-        var cas = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.cas"));
-
-        cas.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.cas.enabled"),
-                        cfg.cas.enabled)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.cas.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.cas.enabled = v)
-                .build());
-
-        cas.addEntry(eb.startFloatField(
-                        Component.translatable("vramtweak.gui.option.cas.sharpness"),
-                        cfg.cas.sharpness)
-                .setDefaultValue(0.2f)
-                .setMin(0.0f).setMax(1.0f)
-                .setTooltip(Component.translatable("vramtweak.gui.option.cas.sharpness.tooltip"))
-                .setSaveConsumer(v -> cfg.cas.sharpness = v)
-                .build());
-
         // ---- HUD ----
         var hud = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.hud"));
 

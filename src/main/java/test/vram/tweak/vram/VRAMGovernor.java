@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.util.ModCompat;
 
 /**
  * Dynamically adjusts render distance based on VRAM pressure.
@@ -29,6 +30,10 @@ public class VRAMGovernor {
     private static int originalDistance = -1; // captured once, restored on recovery
     private static int cooldown;
 
+    // Iris compatibility: governor reduces to warning-only mode
+    private static boolean irisActive;
+    private static boolean irisWarningShown;
+
     /** Called once at init. */
     public static void initialize() {
         reload();
@@ -44,22 +49,60 @@ public class VRAMGovernor {
         minDistance = cfg.minDistance;
         cooldownTicks = cfg.cooldownTicks;
 
+        // Iris compatibility check
+        irisActive = ModCompat.isIrisLoaded();
+        irisWarningShown = false;
+
         // Reset state on reload
         currentCap = Integer.MAX_VALUE;
         originalDistance = -1;
         cooldown = 0;
 
         if (enabled) {
-            LOGGER.info("VRAM governor ON. target={}%, hysteresis={}, minDist={}, cooldown={}t",
-                    targetPercent, hysteresis, minDistance, cooldownTicks);
+            if (irisActive) {
+                LOGGER.warn("VRAM governor ON (Iris detected — auto-adjust disabled, warning only)."
+                        + " target={}%, hysteresis={}", targetPercent, hysteresis);
+            } else {
+                LOGGER.info("VRAM governor ON. target={}%, hysteresis={}, minDist={}, cooldown={}t",
+                        targetPercent, hysteresis, minDistance, cooldownTicks);
+            }
         } else {
             LOGGER.info("VRAM governor OFF.");
+        }
+    }
+
+    /**
+     * When Iris is active: only check VRAM and log warnings, never adjust render distance.
+     * Shows one warning per session when threshold is exceeded.
+     */
+    private static void checkIrisWarning() {
+        if (irisWarningShown) return;
+        long freeKB = VRAMOptimizer.queryFreeVRAM();
+        if (freeKB <= 0) return;
+        long totalMB = VRAMOptimizer.queryTotalVRAM();
+        if (totalMB <= 0) return;
+        long usedMB = totalMB - (freeKB / 1024);
+        long thresholdMB = totalMB * targetPercent / 100;
+        if (usedMB > thresholdMB) {
+            irisWarningShown = true;
+            VerificationLogger.logGovernorAction("iris_warn", 0, 0, usedMB, totalMB);
+            LOGGER.warn("VRAM pressure with Iris: {}MB/{}MB ({}%). "
+                    + "Iris shaders may cause stuttering. Consider lowering settings.",
+                    usedMB, totalMB, usedMB * 100 / totalMB);
         }
     }
 
     /** Called each frame from MixinGameRenderer_Metrics. */
     public static void onFrameEnd() {
         if (!enabled) return;
+
+        // Iris compatibility: don't auto-adjust render distance,
+        // only show warnings when under pressure
+        if (irisActive) {
+            checkIrisWarning();
+            return;
+        }
+
         if (cooldown > 0) { cooldown--; return; }
 
         long freeKB = VRAMOptimizer.queryFreeVRAM();
@@ -99,7 +142,7 @@ public class VRAMGovernor {
      * @return capped value, or original if governor disabled / not active
      */
     public static int capRenderDistance(int original) {
-        if (!enabled || currentCap == Integer.MAX_VALUE) return original;
+        if (!enabled || irisActive || currentCap == Integer.MAX_VALUE) return original;
         if (originalDistance < 0) originalDistance = original;
         return Math.min(original, currentCap);
     }

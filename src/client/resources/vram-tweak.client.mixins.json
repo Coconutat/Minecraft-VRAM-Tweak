@@ -8,7 +8,6 @@
 		"MixinMinecraftClient_Init",
 		"MixinGpuDevice_VRAMOptimize",
 		"MixinGameRenderer_Metrics",
-		"MixinGameRenderer_CAS",
 		"MixinOptions_RenderDistance",
 		"MixinSpriteContents_AnimationLimit",
 		"MixinParticleEngine_Cap",

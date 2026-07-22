@@ -18,6 +18,7 @@ import test.vram.tweak.diagnostic.VramFrameCounter;
 import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.gpu.GPUInfo;
+import test.vram.tweak.util.ModCompat;
 
 /**
  * HUD overlay for vram-tweak. Singleton — shared by tick and render mixins.
@@ -132,10 +133,11 @@ public class VramTweakHud {
             long total = MetricsEngine.getVramTotalMB();
             int peakPct = total > 0 ? (int)(peakVramMB * 100 / total) : 0;
             int warns = VerificationLogger.getBudgetWarnings();
+            String irisTag = ModCompat.isIrisLoaded() ? " §d[Iris]" : "";
             String status = warns > 0 ? "§cWARN×" + warns : Component.translatable("vramtweak.hud.budget.ok").getString();
             var label = Component.translatable("vramtweak.hud.budget").getString();
             String peakColor = peakPct >= 80 ? "§c" : "§a";
-            textList.add(Component.literal(label + " " + status + " §f(peak " + peakColor + peakPct + "%§f)"));
+            textList.add(Component.literal(label + " " + status + irisTag + " §f(peak " + peakColor + peakPct + "%§f)"));
         }
 
         // One-shot trace: log HUD content after first 5 ticks

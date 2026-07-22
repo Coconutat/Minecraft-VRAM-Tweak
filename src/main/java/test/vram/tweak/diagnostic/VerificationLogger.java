@@ -46,8 +46,6 @@ public class VerificationLogger {
     private static final AtomicInteger atlasTracked = new AtomicInteger();
     private static final AtomicInteger atlasCaps = new AtomicInteger();
 
-    // CAS
-    private static final AtomicInteger casFrames = new AtomicInteger();
 
     private static boolean enabled() {
         return VRAMConfig.getInstance().diagnostic.verificationLog;
@@ -96,8 +94,6 @@ public class VerificationLogger {
                 + " cooldown=" + c.governor.cooldownTicks + "t");
         writeln("  Particle: enabled=" + c.particle.enabled
                 + " max=" + c.particle.maxParticles);
-        writeln("  CAS: enabled=" + c.cas.enabled
-                + " sharpness=" + c.cas.sharpness);
         writeln("");
         writeln("[Events]");
         fileWriter.flush();
@@ -225,24 +221,7 @@ public class VerificationLogger {
                 c.governor.minDistance, c.governor.cooldownTicks);
         LOG.info("{} Particle: enabled={} max={}",
                 PFX, c.particle.enabled, c.particle.maxParticles);
-        LOG.info("{} CAS: enabled={} sharpness={}",
-                PFX, c.cas.enabled, c.cas.sharpness);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
-    }
-
-    // ---- CAS ----
-
-    public static void logCasInit(int program) {
-        if (!enabled()) return;
-        logBoth("CAS shader initialized: program=" + program);
-    }
-
-    public static void logCasFrame(int frame, int w, int h, float sharpness) {
-        if (!enabled()) return;
-        casFrames.incrementAndGet();
-        if (frame == 1 || frame % 600 == 0) {
-            logBoth(String.format("CAS frame #%d: %d×%d sharpness=%.1f", frame, w, h, sharpness));
-        }
     }
 
     // ---- Summary ----
@@ -251,11 +230,10 @@ public class VerificationLogger {
         return String.format(
                 "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
                 + "Anim caps:%d | Particle rejects:%d | Governor actions:%d | Budget warns:%d | "
-                + "Atlas tracked:%d | Atlas caps:%d | CAS frames:%d",
+                + "Atlas tracked:%d | Atlas caps:%d",
                 shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
                 animCaps.get(), particleRejects.get(), governorActions.get(),
-                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get(),
-                casFrames.get());
+                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get());
     }
 
     public static synchronized void shutdown() {
