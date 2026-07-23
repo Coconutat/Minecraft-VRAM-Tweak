@@ -52,7 +52,13 @@ public class PinnedMemory {
     /** Called at startup to force the availability check and log the result. */
     public static void initCheck() {
         if (isAvailable()) {
-            LOGGER.info("[PinnedMemory] ✅ Extension available — enable 'Experimental (AMD) → Pinned Memory' in GUI to use");
+            var cfg = test.vram.tweak.config.VRAMConfig.getInstance().experimental;
+            if (cfg.pinnedMemory) {
+                LOGGER.info("[PinnedMemory] ✅ Enabled (min size: {}px)", cfg.pinnedMemoryMinSize);
+                PinnedMemoryPool.init();
+            } else {
+                LOGGER.info("[PinnedMemory] ✅ Extension available — enable 'Experimental (AMD) → Pinned Memory' in GUI to use");
+            }
         } else {
             LOGGER.info("[PinnedMemory] ❌ Not available (requires AMD GPU + driver support)");
         }

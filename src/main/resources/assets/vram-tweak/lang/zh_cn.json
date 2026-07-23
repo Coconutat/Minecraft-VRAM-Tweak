@@ -108,5 +108,5 @@
   "vramtweak.gui.option.experimental.pinnedMemory": "钉住内存 (GL_AMD_pinned_memory)",
   "vramtweak.gui.option.experimental.pinnedMemory.tooltip": "通过 AMD 钉住内存实现零拷贝纹理上传。\n减少加载大型纹理图集时的卡顿。\n需要 AMD GPU 支持 GL_AMD_pinned_memory 扩展。\n⚠ 实验性 — 部分驱动可能不稳定。",
   "vramtweak.gui.option.experimental.pinnedMemoryMinSize": "PBO 最小纹理尺寸",
-  "vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip": "使用钉住 PBO 的最小纹理尺寸 (像素)。\n▼ 256 = 更多纹理使用 PBO (每调用开销更大)。\n▲ 1024 = 仅大型图集使用 PBO (更安全)。\n默认 1024。",  "vramtweak.client.registered": "客户端已注册。 /vramtweak stats|dump|hud|benchmark"
+  "vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip": "使用钉住 PBO 的最小纹理尺寸 (像素)。\n▼ 32 = 几乎所有纹理都使用 PBO (最大覆盖)。\n▲ 1024+ = 仅大型纹理使用 PBO (更安全)。\n默认 32。\n⚠ 32 可能增加每帧调用开销。",  "vramtweak.client.registered": "客户端已注册。 /vramtweak stats|dump|hud|benchmark"
 }

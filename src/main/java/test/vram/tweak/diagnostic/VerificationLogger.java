@@ -94,6 +94,8 @@ public class VerificationLogger {
                 + " cooldown=" + c.governor.cooldownTicks + "t");
         writeln("  Particle: enabled=" + c.particle.enabled
                 + " max=" + c.particle.maxParticles);
+        writeln("  Experimental: pinnedMemory=" + c.experimental.pinnedMemory
+                + " minSize=" + c.experimental.pinnedMemoryMinSize + "px");
         writeln("");
         writeln("[Events]");
         fileWriter.flush();
@@ -221,6 +223,8 @@ public class VerificationLogger {
                 c.governor.minDistance, c.governor.cooldownTicks);
         LOG.info("{} Particle: enabled={} max={}",
                 PFX, c.particle.enabled, c.particle.maxParticles);
+        LOG.info("{} Experimental: pinnedMemory={} minSize={}px",
+                PFX, c.experimental.pinnedMemory, c.experimental.pinnedMemoryMinSize);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
     }
 

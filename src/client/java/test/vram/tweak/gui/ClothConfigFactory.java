@@ -220,7 +220,7 @@ public class ClothConfigFactory {
                         Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
                         cfg.experimental.pinnedMemoryMinSize)
                 .setDefaultValue(1024)
-                .setMin(256).setMax(8192)
+                .setMin(32).setMax(8192)
                 .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
                 .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
                 .build());

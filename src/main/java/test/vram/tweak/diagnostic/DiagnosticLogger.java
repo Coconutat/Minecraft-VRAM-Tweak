@@ -166,20 +166,44 @@ public class DiagnosticLogger {
 
         // Mods
         sb.append("[Mods]\n");
+        boolean hasSodium = false;
+        boolean hasIris = false;
         for (var mod : FabricLoader.getInstance().getAllMods()) {
-            sb.append("  ").append(mod.getMetadata().getId())
+            String id = mod.getMetadata().getId();
+            sb.append("  ").append(id)
               .append(" v").append(mod.getMetadata().getVersion().getFriendlyString()).append("\n");
+            if ("sodium".equals(id)) hasSodium = true;
+            if ("iris".equals(id)) hasIris = true;
         }
+        sb.append("\n");
+
+        // Renderer detection
+        sb.append("[Renderer]\n");
+        sb.append("  Sodium: ").append(hasSodium ? "detected" : "not present").append("\n");
+        sb.append("  Iris: ").append(hasIris ? "detected" : "not present").append("\n");
+        sb.append("  Texture upload: ");
+        if (hasSodium) {
+            sb.append("Sodium uses vanilla GlCommandEncoder.writeToTexture()\n");
+        } else {
+            sb.append("Vanilla GlStateManager path\n");
+        }
+        sb.append("  PinnedMemory: PBO pool (").append(VRAMConfig.getInstance().experimental.pinnedMemoryMinSize).append("px threshold)\n");
+        sb.append("  PBO pool sizes: 512KB, 2MB, 8MB, 32MB (persistent coherent mapping)\n");
+        sb.append("  Hooks: _texImage2D(ByteBuffer) + _texSubImage2D(ByteBuffer) (long path uses native pointer directly)\n");
         sb.append("\n");
 
         // Config
         sb.append("[Config]\n");
-        var vram = VRAMConfig.getInstance().vram;
+        var c = VRAMConfig.getInstance();
+        var vram = c.vram;
         sb.append("  VRAM enabled: ").append(vram.enabled).append("\n");
         sb.append("  Shadow cap: ").append(vram.shadowMapMaxSize).append("\n");
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
+        sb.append("  Experimental:\n");
+        sb.append("    Pinned Memory: ").append(c.experimental.pinnedMemory).append("\n");
+        sb.append("    Pinned Memory min size: ").append(c.experimental.pinnedMemoryMinSize).append(" px\n");
 
         // Write
         try {

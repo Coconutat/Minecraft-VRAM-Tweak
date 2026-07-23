@@ -111,6 +111,6 @@
   "vramtweak.gui.option.experimental.pinnedMemory": "Pinned Memory (GL_AMD_pinned_memory)",
   "vramtweak.gui.option.experimental.pinnedMemory.tooltip": "Zero-copy texture upload via AMD pinned memory.\nReduces stutter when loading large texture atlases.\nRequires AMD GPU with GL_AMD_pinned_memory support.\n⚠ Experimental — may cause instability on some drivers.",
   "vramtweak.gui.option.experimental.pinnedMemoryMinSize": "PBO Min Texture Size",
-  "vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip": "Minimum texture dimension (px) to use pinned PBO.\n▼ 256 = more textures use PBO (higher overhead per call).\n▲ 1024 = only large atlases use PBO (safer).\nDefault 1024.",
+  "vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip": "Minimum texture dimension (px) to use pinned PBO.\n▼ 32 = most textures use PBO (max coverage).\n▲ 1024+ = only large textures use PBO (safer).\nDefault 32.",
   "vramtweak.client.registered": "Client registered. /vramtweak stats|dump|hud|benchmark"
 }
