@@ -18,6 +18,9 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loader.api.FabricLoader;
 
 import test.vram.tweak.config.VRAMConfig;
+import test.vram.tweak.gpu.AmdVramLookup;
+import test.vram.tweak.gpu.GPUDetector;
+import test.vram.tweak.gpu.GPUType;
 import test.vram.tweak.gpu.GPUDetector;
 
 /**
@@ -71,13 +74,33 @@ public class DiagnosticLogger {
         sb.append("  GL Version: ").append(GL11.glGetString(GL11.GL_VERSION)).append("\n");
         sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
 
+        // AMD architecture
+        if (GPUDetector.getGPU() == GPUType.AMD) {
+            sb.append("  AMD Arch: ").append(GPUDetector.getAmdArchDisplay()).append("\n");
+            sb.append("  AMD Model: ").append(GPUDetector.getAmdModel()).append("\n");
+        }
+
         // VRAM query (GPU-aware)
         try {
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
                     int[] vals = new int[4];
                     GL11.glGetIntegerv(0x87FB, vals);
-                    sb.append("  VRAM free (ATI_meminfo): ").append(vals[0] & 0xFFFFFFFFL).append(" KB\n");
+                    long freeKB = vals[0] & 0xFFFFFFFFL;
+                    sb.append("  VRAM free (ATI_meminfo): ").append(freeKB).append(" KB\n");
+                    // Try NVX total if available
+                    if (hasExtension("GL_NVX_gpu_memory_info")) {
+                        int[] totalVal = new int[1];
+                        GL11.glGetIntegerv(0x9047, totalVal);
+                        sb.append("  VRAM total (NVX): ").append((totalVal[0] & 0xFFFFFFFFL) / 1024).append(" MB\n");
+                    }
+                    // Model-based total
+                    long knownVram = AmdVramLookup.lookup(
+                            GPUDetector.getGPUInfo() != null ? GPUDetector.getGPUInfo().getAmdArch() : null,
+                            GPUDetector.getAmdModel());
+                    if (knownVram > 0) {
+                        sb.append("  VRAM known (model lookup): ").append(knownVram).append(" MB\n");
+                    }
                 }
                 case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];

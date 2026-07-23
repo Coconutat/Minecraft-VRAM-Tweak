@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
+import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 
 /**
@@ -78,6 +79,11 @@ public class MetricsEngine {
     private static Set<String> checkedExtensions = new HashSet<>();
     private static Set<String> availableExtensions = new HashSet<>();
     private static long calibrationTotalKB;
+
+    // AMD ATI_meminfo overestimation calibration
+    private static long amdStartupFreeKB;
+    private static long amdOffsetKB; // ATI_meminfo overestimates free by this much
+    private static boolean amdCalibrated;
 
     /** Check GL extension availability, cached. */
     private static boolean hasGLExt(String ext) {
@@ -166,6 +172,29 @@ public class MetricsEngine {
             long totalKB;
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
+                    // 0. Model-based lookup (most accurate, avoids NVX bugs on AMD)
+                    long knownTotalKB = queryAmdKnownTotalKB();
+                    if (knownTotalKB > 0) {
+                        calibrationTotalKB = knownTotalKB;
+                        int[] vals = new int[4];
+                        GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
+                        freeKB = vals[0] & 0xFFFFFFFFL;
+                        totalKB = knownTotalKB;
+                        if (freeKB > 0 && freeKB <= 128L * 1024 * 1024) {
+                            // Calibrate ATI_meminfo overestimation on first poll
+                            if (!amdCalibrated) {
+                                amdStartupFreeKB = freeKB;
+                                // On a fresh game start, expect ~200MB driver overhead
+                                long expectedFreeKB = knownTotalKB - 200 * 1024;
+                                amdOffsetKB = freeKB > expectedFreeKB ? freeKB - expectedFreeKB : 0;
+                                amdCalibrated = true;
+                            }
+                            // Apply offset to get adjusted free VRAM
+                            long adjustedFree = freeKB > amdOffsetKB ? freeKB - amdOffsetKB : 0;
+                            freeKB = Math.min(adjustedFree, totalKB);
+                            break;
+                        }
+                    }
                     // 1. Try GL_NVX_gpu_memory_info (many AMD drivers expose it)
                     if (hasGLExt("GL_NVX_gpu_memory_info")) {
                         int[] freeVal = new int[1], totalVal = new int[1];
@@ -230,6 +259,17 @@ public class MetricsEngine {
             lastVramUsedMB = lastVramTotalMB - (freeKB / 1024);
         } catch (Exception ignored) {
         }
+    }
+
+    /** Model-based AMD total VRAM in KB. Returns 0 if model unknown or not AMD. */
+    private static long queryAmdKnownTotalKB() {
+        try {
+            var info = GPUDetector.getGPUInfo();
+            if (info == null || !info.getVendor().isAMD()) return 0;
+            long knownMB = AmdVramLookup.lookup(info.getAmdArch(), info.getAmdModelName());
+            if (knownMB > 0) return knownMB * 1024; // MB → KB
+        } catch (Exception ignored) {}
+        return 0;
     }
 
     // ---- Public queries ----

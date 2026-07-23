@@ -49,6 +49,15 @@ public class PinnedMemory {
         return available;
     }
 
+    /** Called at startup to force the availability check and log the result. */
+    public static void initCheck() {
+        if (isAvailable()) {
+            LOGGER.info("[PinnedMemory] ✅ Extension available — enable 'Experimental (AMD) → Pinned Memory' in GUI to use");
+        } else {
+            LOGGER.info("[PinnedMemory] ❌ Not available (requires AMD GPU + driver support)");
+        }
+    }
+
     /**
      * Create a PBO backed by pinned application memory.
      * The buffer's memory is directly accessible by the GPU — no driver copy.

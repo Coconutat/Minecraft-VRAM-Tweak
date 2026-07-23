@@ -49,7 +49,7 @@ public class MixinGlStateManager_PinnedMemory {
                     border, format, type, 0L);
             PinnedMemory.unbindUnpackPBO();
             ci.cancel();
-            VRAM_TWEAK_PINNED_LOG.debug("[Pinned] _texImage2D {}x{} via PBO", width, height);
+            VRAM_TWEAK_PINNED_LOG.info("[Pinned] _texImage2D {}x{} via PBO (experimental)", width, height);
         } catch (Exception e) {
             VRAM_TWEAK_PINNED_LOG.warn("[Pinned] _texImage2D failed, falling back", e);
             PinnedMemory.unbindUnpackPBO();
