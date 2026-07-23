@@ -254,8 +254,6 @@ public class VRAMOptimizer {
         long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * budgetPercent / 100;
 
-        MetricsEngine.setVramUsed(Math.max(0, usedMB));
-
         if (usedMB > thresholdMB) {
             if (!overBudget && cooldown <= 0) {
                 LOGGER.warn("VRAM BUDGET: {}MB / {}MB ({}%). Consider reducing settings.",
