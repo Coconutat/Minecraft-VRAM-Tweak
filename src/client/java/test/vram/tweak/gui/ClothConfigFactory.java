@@ -335,6 +335,13 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.showBudget = v)
                 .build());
 
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showGovernor"), cfg.hud.showGovernor)
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("vramtweak.gui.option.showGovernor.tooltip"))
+                .setSaveConsumer(v -> cfg.hud.showGovernor = v)
+                .build());
+
         hud.addEntry(eb.startIntSlider(
                         Component.translatable("vramtweak.gui.option.bgAlpha"),
                         (int)(cfg.hud.bgAlpha * 100), 0, 80)

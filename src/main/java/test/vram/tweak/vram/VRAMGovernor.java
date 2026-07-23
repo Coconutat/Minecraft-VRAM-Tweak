@@ -10,11 +10,12 @@ import test.vram.tweak.util.ModCompat;
 /**
  * Dynamically adjusts render distance based on VRAM pressure.
  *
- * When VRAM usage exceeds target threshold: reduce effective render distance.
- * When VRAM recovers below (threshold - hysteresis): restore.
- * Cooldown between adjustments prevents flickering.
+ * When VRAM usage exceeds target threshold: reduce effective render distance
+ * by 1 chunk per step. When VRAM recovers below (threshold - hysteresis):
+ * restore to original render distance immediately.
  *
- * Designed to work with MixinOptions_RenderDistance (client sourceSet).
+ * Cooldown between adjustments prevents flickering.
+ * With Iris: slower adjustments (2x cooldown) to avoid shader reload issues.
  */
 public class VRAMGovernor {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/governor");
@@ -26,20 +27,18 @@ public class VRAMGovernor {
     private static int cooldownTicks;
 
     // State
-    private static int currentCap = Integer.MAX_VALUE;
-    private static int originalDistance = -1; // captured once, restored on recovery
+    private static int currentCap = Integer.MAX_VALUE;   // effective cap
+    private static int originalDistance = -1;             // user's setting
     private static int cooldown;
-
-    // Iris compatibility: governor reduces to warning-only mode
     private static boolean irisActive;
-    private static boolean irisWarningShown;
+    private static boolean underPressure;                 // true when above threshold
 
     /** Called once at init. */
     public static void initialize() {
         reload();
     }
 
-    /** Re-read config. */
+    /** Re-read config. Callable at runtime. */
     public static void reload() {
         var cfg = VRAMConfig.getInstance().governor;
         var vramCfg = VRAMConfig.getInstance().vram;
@@ -48,47 +47,18 @@ public class VRAMGovernor {
         hysteresis = cfg.hysteresis;
         minDistance = cfg.minDistance;
         cooldownTicks = cfg.cooldownTicks;
-
-        // Iris compatibility check
         irisActive = ModCompat.isIrisLoaded();
-        irisWarningShown = false;
-
-        // Reset state on reload
         currentCap = Integer.MAX_VALUE;
         originalDistance = -1;
         cooldown = 0;
+        underPressure = false;
 
         if (enabled) {
-            if (irisActive) {
-                LOGGER.warn("VRAM governor ON (Iris detected — auto-adjust disabled, warning only)."
-                        + " target={}%, hysteresis={}", targetPercent, hysteresis);
-            } else {
-                LOGGER.info("VRAM governor ON. target={}%, hysteresis={}, minDist={}, cooldown={}t",
-                        targetPercent, hysteresis, minDistance, cooldownTicks);
-            }
+            LOGGER.info("VRAM governor ON. target={}%, hysteresis={}%, minDist={}, cooldown={}t{}",
+                    targetPercent, hysteresis, minDistance, cooldownTicks,
+                    irisActive ? " (Iris: slower adjust)" : "");
         } else {
             LOGGER.info("VRAM governor OFF.");
-        }
-    }
-
-    /**
-     * When Iris is active: only check VRAM and log warnings, never adjust render distance.
-     * Shows one warning per session when threshold is exceeded.
-     */
-    private static void checkIrisWarning() {
-        if (irisWarningShown) return;
-        long freeKB = VRAMOptimizer.queryFreeVRAM();
-        if (freeKB <= 0) return;
-        long totalMB = VRAMOptimizer.queryTotalVRAM();
-        if (totalMB <= 0) return;
-        long usedMB = totalMB - (freeKB / 1024);
-        long thresholdMB = totalMB * targetPercent / 100;
-        if (usedMB > thresholdMB) {
-            irisWarningShown = true;
-            VerificationLogger.logGovernorAction("iris_warn", 0, 0, usedMB, totalMB);
-            LOGGER.warn("VRAM pressure with Iris: {}MB/{}MB ({}%). "
-                    + "Iris shaders may cause stuttering. Consider lowering settings.",
-                    usedMB, totalMB, usedMB * 100 / totalMB);
         }
     }
 
@@ -96,43 +66,43 @@ public class VRAMGovernor {
     public static void onFrameEnd() {
         if (!enabled) return;
 
-        // Iris compatibility: don't auto-adjust render distance,
-        // only show warnings when under pressure
-        if (irisActive) {
-            checkIrisWarning();
-            return;
-        }
-
         if (cooldown > 0) { cooldown--; return; }
 
         long freeKB = VRAMOptimizer.queryFreeVRAM();
         if (freeKB <= 0) return;
-
         long totalMB = VRAMOptimizer.queryTotalVRAM();
         if (totalMB <= 0) return;
 
         long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * targetPercent / 100;
+        long recoverMB = totalMB * (targetPercent - hysteresis) / 100;
 
-        if (usedMB > thresholdMB && currentCap > minDistance) {
-            // reduce by 1 chunk
-            currentCap = Math.max(minDistance, currentCap - 1);
-            cooldown = cooldownTicks;
-            VerificationLogger.logGovernorAction("reduce", currentCap + 1, currentCap, usedMB, totalMB);
-            LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Reducing render distance -> {}",
-                    usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
-        } else if (usedMB < totalMB * (targetPercent - hysteresis) / 100 && currentCap < Integer.MAX_VALUE) {
-            // recover by 1 chunk
-            currentCap = Math.min(Integer.MAX_VALUE, currentCap + 1);
-            cooldown = cooldownTicks;
-            VerificationLogger.logGovernorAction("restore", currentCap - 1, currentCap, usedMB, totalMB);
-            if (currentCap >= originalDistance || currentCap >= 32) {
-                currentCap = Integer.MAX_VALUE;
-                originalDistance = -1;
-                LOGGER.info("VRAM recovered: {}MB. Render distance restored.", usedMB);
-            } else {
-                LOGGER.info("VRAM recovering: {}MB. Render distance -> {}", usedMB, currentCap);
+        boolean over = usedMB > thresholdMB;
+        boolean recovered = usedMB < recoverMB;
+
+        // Iris: use longer cooldown but still adjust
+        int stepCooldown = irisActive ? cooldownTicks * 2 : cooldownTicks;
+
+        if (over) {
+            underPressure = true;
+            if (currentCap > minDistance) {
+                currentCap = Math.max(minDistance, currentCap - 1);
+                cooldown = stepCooldown;
+                VerificationLogger.logGovernorAction(
+                        irisActive ? "iris_reduce" : "reduce",
+                        currentCap + 1, currentCap, usedMB, totalMB);
+                LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Render dist -> {}",
+                        usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
             }
+        } else if (recovered && underPressure) {
+            // Restore in one shot when pressure is gone
+            underPressure = false;
+            int prevCap = currentCap;
+            currentCap = Integer.MAX_VALUE;
+            originalDistance = -1;
+            cooldown = stepCooldown;
+            VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
+            LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
         }
     }
 
@@ -142,10 +112,16 @@ public class VRAMGovernor {
      * @return capped value, or original if governor disabled / not active
      */
     public static int capRenderDistance(int original) {
-        if (!enabled || irisActive || currentCap == Integer.MAX_VALUE) return original;
+        if (!enabled || currentCap == Integer.MAX_VALUE) return original;
         if (originalDistance < 0) originalDistance = original;
         return Math.min(original, currentCap);
     }
+
+    /** Current effective render distance cap (or MAX_VALUE if no cap). */
+    public static int getCurrentCap() { return currentCap; }
+
+    /** Whether the governor is actively capping render distance. */
+    public static boolean isCapping() { return enabled && currentCap < Integer.MAX_VALUE; }
 
     public static boolean isEnabled() { return enabled; }
 }

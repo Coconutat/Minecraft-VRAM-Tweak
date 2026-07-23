@@ -80,9 +80,10 @@ public class MetricsEngine {
     private static Set<String> availableExtensions = new HashSet<>();
     private static long calibrationTotalKB;
 
-    // AMD ATI_meminfo overestimation calibration
-    private static long amdStartupFreeKB;
-    private static long amdOffsetKB; // ATI_meminfo overestimates free by this much
+    // AMD ATI_meminfo dynamic calibration
+    private static long amdMinFreeKB;          // low water mark: minimum free KB ever seen
+    private static double amdSmoothedUsedMB;   // EMA-smoothed used VRAM
+    private static long amdPrevFreeKB;
     private static boolean amdCalibrated;
 
     /** Check GL extension availability, cached. */
@@ -172,54 +173,80 @@ public class MetricsEngine {
             long totalKB;
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    // 0. Model-based lookup (most accurate, avoids NVX bugs on AMD)
+                    // === Dynamic calibration using low-water-mark + EMA smoothing ===
+                    // ATI_meminfo overestimates free VRAM (driver includes reclaimable memory).
+                    // Instead of a one-time offset, we track the minimum free ever seen
+                    // (low water mark = point of peak usage) and smooth with EMA.
+
+                    // 0. Get total from model lookup (most accurate)
                     long knownTotalKB = queryAmdKnownTotalKB();
-                    if (knownTotalKB > 0) {
-                        calibrationTotalKB = knownTotalKB;
-                        int[] vals = new int[4];
-                        GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
-                        freeKB = vals[0] & 0xFFFFFFFFL;
-                        totalKB = knownTotalKB;
-                        if (freeKB > 0 && freeKB <= 128L * 1024 * 1024) {
-                            // Calibrate ATI_meminfo overestimation on first poll
-                            if (!amdCalibrated) {
-                                amdStartupFreeKB = freeKB;
-                                // On a fresh game start, expect ~200MB driver overhead
-                                long expectedFreeKB = knownTotalKB - 200 * 1024;
-                                amdOffsetKB = freeKB > expectedFreeKB ? freeKB - expectedFreeKB : 0;
-                                amdCalibrated = true;
-                            }
-                            // Apply offset to get adjusted free VRAM
-                            long adjustedFree = freeKB > amdOffsetKB ? freeKB - amdOffsetKB : 0;
-                            freeKB = Math.min(adjustedFree, totalKB);
-                            break;
+                    if (knownTotalKB <= 0) {
+                        // Fallback: try NVX total
+                        if (hasGLExt("GL_NVX_gpu_memory_info")) {
+                            int[] totalVal = new int[1];
+                            GL11.glGetIntegerv(0x9047, totalVal);
+                            knownTotalKB = (totalVal[0] & 0xFFFFFFFFL);
                         }
                     }
-                    // 1. Try GL_NVX_gpu_memory_info (many AMD drivers expose it)
-                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
-                        int[] freeVal = new int[1], totalVal = new int[1];
-                        GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
-                        GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
-                        freeKB = freeVal[0] & 0xFFFFFFFFL;
-                        totalKB = totalVal[0] & 0xFFFFFFFFL;
-                        if (freeKB > 0 && totalKB > 0
-                                && freeKB <= 128L * 1024 * 1024
-                                && totalKB <= 128L * 1024 * 1024) {
-                            calibrationTotalKB = totalKB;
-                            break; // use NVX values
-                        }
+                    if (knownTotalKB <= 0 || knownTotalKB > 128L * 1024 * 1024) {
+                        return; // can't determine total
                     }
-                    // 2. Fallback to ATI + calibration (rounded to known VRAM size)
+                    calibrationTotalKB = knownTotalKB;
+                    totalKB = knownTotalKB;
+
+                    // Read ATI_meminfo free KB
                     int[] vals = new int[4];
                     GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
                     freeKB = vals[0] & 0xFFFFFFFFL;
-                    if (freeKB > 128L * 1024 * 1024) { return; }
-                    if (calibrationTotalKB > 0) {
-                        totalKB = calibrationTotalKB;
-                    } else {
-                        calibrationTotalKB = freeKB;
-                        totalKB = test.vram.tweak.vram.VRAMOptimizer.roundTotalMB(freeKB / 1024) * 1024L;
+                    if (freeKB <= 0 || freeKB > 128L * 1024 * 1024) return;
+
+                    // Initialize on first poll
+                    if (!amdCalibrated) {
+                        amdMinFreeKB = freeKB;
+                        amdSmoothedUsedMB = knownTotalKB / 1024.0 - freeKB / 1024.0;
+                        amdPrevFreeKB = freeKB;
+                        amdCalibrated = true;
+                        // Use raw value for first sample
+                        lastVramTotalMB = totalKB / 1024;
+                        lastVramUsedMB = (long)amdSmoothedUsedMB;
+                        return;
                     }
+
+                    // Update low water mark (tracks peak VRAM usage)
+                    if (freeKB < amdMinFreeKB) {
+                        amdMinFreeKB = freeKB;
+                    }
+
+                    double totalMB = totalKB / 1024.0;
+                    double rawUsedMB = totalMB - freeKB / 1024.0;
+                    double peakUsedMB = totalMB - amdMinFreeKB / 1024.0;
+
+                    // === Smoothing logic ===
+                    // Fast rise: VRAM increases are trusted immediately (texture loading)
+                    // Slow fall: VRAM decreases are smoothed (prevents spikes on world exit)
+                    // Very slow after large jump in free (>20% of total = world exit)
+                    double smoothed;
+                    if (rawUsedMB > amdSmoothedUsedMB) {
+                        // VRAM usage increased — trust it
+                        smoothed = rawUsedMB;
+                    } else {
+                        long freeDelta = freeKB - amdPrevFreeKB;
+                        if (freeDelta > knownTotalKB / 5) {
+                            // Large free increase (world exit / resource cleanup)
+                            // Converge slowly: 2% per step toward raw value
+                            smoothed = amdSmoothedUsedMB * 0.98 + rawUsedMB * 0.02;
+                        } else {
+                            // Normal fluctuation: gentle EMA
+                            smoothed = amdSmoothedUsedMB * 0.85 + rawUsedMB * 0.15;
+                        }
+                    }
+
+                    // Sanity: never exceed total, never below 0
+                    smoothed = Math.max(0, Math.min(smoothed, totalMB * 0.98));
+
+                    amdSmoothedUsedMB = smoothed;
+                    amdPrevFreeKB = freeKB;
+                    freeKB = (long)((totalMB - smoothed) * 1024); // synthetic free for later calculation
                 }
                 case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
@@ -256,7 +283,8 @@ public class MetricsEngine {
                 default -> { return; }
             }
             lastVramTotalMB = totalKB / 1024;
-            lastVramUsedMB = lastVramTotalMB - (freeKB / 1024);
+            long raw = lastVramTotalMB - (freeKB / 1024);
+            lastVramUsedMB = Math.max(0, raw);
         } catch (Exception ignored) {
         }
     }

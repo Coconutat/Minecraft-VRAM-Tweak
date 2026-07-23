@@ -128,6 +128,18 @@ public class VramTweakHud {
             textList.add(Component.literal(label + " " + depthColor + "D→D16×" + depth + "§f, " + fmtColor + "Fmt×" + fmt));
         }
 
+        // ---- Governor status ----
+        if (hud.showGovernor) {
+            boolean capping = test.vram.tweak.vram.VRAMGovernor.isCapping();
+            int cap = test.vram.tweak.vram.VRAMGovernor.getCurrentCap();
+            var label = Component.translatable("vramtweak.hud.governor").getString();
+            if (capping) {
+                textList.add(Component.literal(label + " §eRD≤" + cap));
+            } else {
+                textList.add(Component.literal(label + " §aOK"));
+            }
+        }
+
         // ---- Budget status ----
         if (hud.showBudget) {
             long total = MetricsEngine.getVramTotalMB();
