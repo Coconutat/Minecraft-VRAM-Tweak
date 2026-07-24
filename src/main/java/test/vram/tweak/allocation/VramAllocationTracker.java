@@ -128,15 +128,15 @@ public final class VramAllocationTracker {
     }
 
     /**
-     * Update a record's render-target classification.
+     * Update a record's render-target classification with source hint.
      * <p>Called from D-layer mixin (framebuffer attachment hook).</p>
      */
-    public void markAsRenderTarget(int glObjectId, AllocationCategory rtCategory) {
+    public void markAsRenderTarget(int glObjectId, AllocationCategory rtCategory, SourceTag rtSource) {
         if (!active.get()) return;
 
         VramAllocationRecord record = aliveById.get(glObjectId);
         if (record != null) {
-            record.markAsRenderTarget(rtCategory);
+            record.markAsRenderTarget(rtCategory, rtSource);
         }
     }
 

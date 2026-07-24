@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 
+import test.vram.tweak.allocation.AllocLabelBridge;
 import test.vram.tweak.allocation.VramAllocationRecord;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.allocation.VramAllocLogger;
@@ -67,9 +68,8 @@ public class MixinGlStateManager_AllocTracker {
                     /*mipLevels*/0, internalformat, level);
             tracker.recordAlloc(rec);
 
-            if (pixels != null) {
-                VramAllocLogger.logAlloc(rec);
-            }
+            // Always log — Blaze3D uses _texImage2D(..., null) for storage allocation
+            VramAllocLogger.logAlloc(rec);
         } catch (Exception ignored) {
             // Don't let tracking errors crash the game
         }
@@ -173,13 +173,16 @@ public class MixinGlStateManager_AllocTracker {
         // Only create on level 0 (base level) to avoid duplicate records per mip
         int effectiveMipLevels = (level == 0 && mipLevels == 0) ? 1 : mipLevels;
 
+        // Try to get label from the A-layer (GpuDevice.createTexture) bridge
+        String label = AllocLabelBridge.consume();
+
         // Simplified caller extraction
         String caller = extractCaller();
 
         return new VramAllocationRecord(
                 texId, width, height, depth,
                 effectiveMipLevels, internalformat,
-                /*label*/ null,  // label comes from GpuDevice.createTexture (A-layer)
+                label,
                 /*allocTick*/ System.currentTimeMillis(),
                 caller
         );

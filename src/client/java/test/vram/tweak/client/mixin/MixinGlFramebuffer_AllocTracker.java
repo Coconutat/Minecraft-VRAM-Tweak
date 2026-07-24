@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.mojang.blaze3d.opengl.GlStateManager;
 
 import test.vram.tweak.allocation.AllocationCategory;
+import test.vram.tweak.allocation.SourceTag;
 import test.vram.tweak.allocation.VramAllocationTracker;
 
 /**
@@ -57,7 +58,7 @@ public class MixinGlFramebuffer_AllocTracker {
         try {
             AllocationCategory rtCategory = classifyAttachment(attachment);
             if (rtCategory != null) {
-                tracker.markAsRenderTarget(texture, rtCategory);
+                tracker.markAsRenderTarget(texture, rtCategory, SourceTag.IRIS_GBUFFER);
             }
         } catch (Exception ignored) {
             // Don't crash the game

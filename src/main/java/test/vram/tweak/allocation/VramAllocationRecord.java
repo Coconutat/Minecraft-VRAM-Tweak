@@ -89,8 +89,17 @@ public final class VramAllocationRecord {
 
     /** Promotes this record to a render-target category (called from D-layer hook). */
     public void markAsRenderTarget(AllocationCategory rtCategory) {
+        markAsRenderTarget(rtCategory, SourceTag.UNKNOWN_SOURCE);
+    }
+
+    /** Promotes this record to a render-target category with source hint. */
+    public void markAsRenderTarget(AllocationCategory rtCategory, SourceTag rtSource) {
         if (rtCategory != null && rtCategory.isRenderTarget()) {
             this.category = rtCategory;
+            // Only override source if currently unknown (preserve A-layer label if available)
+            if (this.source == SourceTag.UNKNOWN_SOURCE && rtSource != SourceTag.UNKNOWN_SOURCE) {
+                this.source = rtSource;
+            }
         }
     }
 

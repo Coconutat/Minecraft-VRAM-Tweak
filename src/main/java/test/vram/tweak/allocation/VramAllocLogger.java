@@ -32,7 +32,7 @@ public final class VramAllocLogger {
                 rec.getWidth(), rec.getHeight(),
                 rec.getMipLevels(),
                 Integer.toHexString(rec.getGlInternalFormat()).toUpperCase(),
-                VramAllocSummary.toMB(rec.getEstimatedBytes()),
+                formatBytes(rec.getEstimatedBytes()),
                 rec.getCallerClass()));
     }
 
@@ -44,11 +44,20 @@ public final class VramAllocLogger {
                     rec.getCategory(),
                     rec.getSource(),
                     rec.getWidth(), rec.getHeight(),
-                    VramAllocSummary.toMB(rec.getEstimatedBytes()),
+                    formatBytes(rec.getEstimatedBytes()),
                     rec.getLifetimeMs() / 1000));
         } else {
             VramModLog.debug(String.format("[AllocTracker] FREE   tex=%d  (unknown)", glObjectId));
         }
+    }
+
+    // ---- Helpers ----
+
+    /** Format bytes as MB (≥1MB) or KB (<1MB). */
+    private static String formatBytes(long bytes) {
+        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)) + "MB";
+        if (bytes >= 1024) return (bytes / 1024) + "KB";
+        return bytes + "B";
     }
 
     // ---- Level 2: Periodic snapshot ----
@@ -80,11 +89,11 @@ public final class VramAllocLogger {
 
         // By category
         sb.append("  ── 按类别 ──\n");
-        appendSortedMap(sb, summary.byCategory(), trackedMB);
+        appendSortedMap(sb, summary.byCategory(), summary.aliveEstimatedBytes());
 
         // By source
         sb.append("  ── 按来源 ──\n");
-        appendSortedMap(sb, summary.bySource(), trackedMB);
+        appendSortedMap(sb, summary.bySource(), summary.aliveEstimatedBytes());
 
         VramModLog.info(sb.toString());
     }
