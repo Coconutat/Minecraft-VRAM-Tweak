@@ -10,7 +10,6 @@
 		"MixinGameRenderer_Metrics",
 		"MixinOptions_RenderDistance",
 		"MixinSpriteContents_AnimationLimit",
-		"MixinParticleEngine_Cap",
 		"MixinGui_Hud",
 		"MixinMinecraft_Hud",
 		"MixinScreen_RestartWarning",

@@ -97,9 +97,10 @@ public class MixinGlStateManager_PinnedMemory {
 
     @Unique
     private static boolean shouldUsePinned(int width, int height) {
-        var cfg = VRAMConfig.getInstance().experimental;
-        if (!cfg.pinnedMemory) return false;
+        var cfg = VRAMConfig.getInstance();
+        if (!cfg.showExperimental) return false;
+        if (!cfg.experimental.pinnedMemory) return false;
         if (!PinnedMemory.isAvailable()) return false;
-        return Math.max(width, height) >= cfg.pinnedMemoryMinSize;
+        return Math.max(width, height) >= cfg.experimental.pinnedMemoryMinSize;
     }
 }

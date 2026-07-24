@@ -186,45 +186,27 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
                 .build());
 
-        // ---- Particle ----
-        var particle = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.particle"));
+        // ---- Experimental (AMD-specific) — only visible when showExperimental is on ----
+        if (cfg.showExperimental) {
+            var experimental = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.experimental"));
 
-        particle.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.particle.enabled"),
-                        cfg.particle.enabled)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.particle.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.particle.enabled = v)
-                .build());
+            experimental.addEntry(eb.startBooleanToggle(
+                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
+                            cfg.experimental.pinnedMemory)
+                    .setDefaultValue(false)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
+                    .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
+                    .build());
 
-        particle.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.maxParticles"),
-                        cfg.particle.maxParticles)
-                .setDefaultValue(2000)
-                .setMin(200).setMax(10000)
-                .setTooltip(Component.translatable("vramtweak.gui.option.maxParticles.tooltip"))
-                .setSaveConsumer(v -> cfg.particle.maxParticles = v)
-                .build());
-
-        // ---- Experimental (AMD-specific) ----
-        var experimental = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.experimental"));
-
-        experimental.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
-                        cfg.experimental.pinnedMemory)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
-                .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
-                .build());
-
-        experimental.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
-                        cfg.experimental.pinnedMemoryMinSize)
-                .setDefaultValue(1024)
-                .setMin(32).setMax(8192)
-                .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
-                .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
-                .build());
+            experimental.addEntry(eb.startIntField(
+                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
+                            cfg.experimental.pinnedMemoryMinSize)
+                    .setDefaultValue(1024)
+                    .setMin(32).setMax(8192)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
+                    .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
+                    .build());
+        }
 
         // ---- HUD ----
         var hud = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.hud"));
@@ -263,29 +245,12 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.diagnostic.allocSnapshotInterval = v)
                 .build());
 
-        diag.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.allocLogIndividual"),
-                        cfg.diagnostic.allocLogIndividual)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.allocLogIndividual.tooltip"))
-                .setSaveConsumer(v -> cfg.diagnostic.allocLogIndividual = v)
-                .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.hud.enabled"),
                         cfg.hud.enabled)
                 .setDefaultValue(true)
                 .setTooltip(Component.translatable("vramtweak.gui.option.hud.enabled.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.enabled = v)
-                .build());
-
-        hud.addEntry(eb.startSelector(
-                        Component.translatable("vramtweak.gui.option.anchor"),
-                        new String[]{"TOP_LEFT", "TOP_RIGHT", "BOTTOM_LEFT", "BOTTOM_RIGHT"},
-                        cfg.hud.anchor)
-                .setDefaultValue("TOP_LEFT")
-                .setTooltip(Component.translatable("vramtweak.gui.option.anchor.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.anchor = v)
                 .build());
 
         hud.addEntry(eb.startIntSlider(
@@ -382,16 +347,16 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
                 .build());
 
-        hud.addEntry(eb.startIntSlider(
-                        Component.translatable("vramtweak.gui.option.bgAlpha"),
-                        (int)(cfg.hud.bgAlpha * 100), 0, 80)
-                .setDefaultValue(35)
-                .setTooltip(Component.translatable("vramtweak.gui.option.bgAlpha.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.bgAlpha = v / 100f)
-                .build());
-
         // ---- Info (read-only) ----
         var info = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.info"));
+
+        info.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showExperimental"),
+                        cfg.showExperimental)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.showExperimental.tooltip"))
+                .setSaveConsumer(v -> cfg.showExperimental = v)
+                .build());
 
         info.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.gpu"),

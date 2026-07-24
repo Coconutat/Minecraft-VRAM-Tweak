@@ -38,8 +38,8 @@ public class VRAMConfig {
     @SerializedName("governor")
     public GovernorSection governor = new GovernorSection();
 
-    @SerializedName("particle")
-    public ParticleSection particle = new ParticleSection();
+    @SerializedName("showExperimental")
+    public boolean showExperimental = false;
 
     @SerializedName("experimental")
     public ExperimentalSection experimental = new ExperimentalSection();
@@ -134,12 +134,6 @@ public class VRAMConfig {
 
         @SerializedName("maxAtlasSize")
         public int maxAtlasSize = 4096;
-
-        @SerializedName("spriteDownsample")
-        public boolean spriteDownsample = false;
-
-        @SerializedName("maxSpriteSize")
-        public int maxSpriteSize = 64;
     }
 
     // ---- Diagnostic section ----
@@ -154,12 +148,6 @@ public class VRAMConfig {
         @SerializedName("verificationLog")
         public boolean verificationLog = false;
 
-        @SerializedName("logIntervalSeconds")
-        public int logIntervalSeconds = 5;
-
-        @SerializedName("ringBufferSize")
-        public int ringBufferSize = 60;
-
         @SerializedName("logDirectory")
         public String logDirectory = "logs/vram-tweak";
 
@@ -170,9 +158,6 @@ public class VRAMConfig {
 
         @SerializedName("allocSnapshotInterval")
         public int allocSnapshotInterval = 30;
-
-        @SerializedName("allocLogIndividual")
-        public boolean allocLogIndividual = false;
     }
 
     // ---- HUD section ----
@@ -180,9 +165,6 @@ public class VRAMConfig {
     public static class HUDSection {
         @SerializedName("enabled")
         public boolean enabled = true;
-
-        @SerializedName("anchor")
-        public String anchor = "TOP_LEFT";
 
         @SerializedName("offsetX")
         public int offsetX = 4;
@@ -231,12 +213,6 @@ public class VRAMConfig {
 
         @SerializedName("showAllocBreakdown")
         public boolean showAllocBreakdown = false;
-
-        @SerializedName("showDrawCalls")
-        public boolean showDrawCalls = false;
-
-        @SerializedName("bgAlpha")
-        public float bgAlpha = 0.35f;
     }
 
     // ---- Governor section ----
@@ -253,16 +229,6 @@ public class VRAMConfig {
 
         @SerializedName("cooldownTicks")
         public int cooldownTicks = 100;
-    }
-
-    // ---- Particle section ----
-
-    public static class ParticleSection {
-        @SerializedName("enabled")
-        public boolean enabled = false;
-
-        @SerializedName("maxParticles")
-        public int maxParticles = 2000;
     }
 
     // ---- Experimental section (AMD-specific features) ----

@@ -40,7 +40,6 @@ public class VerificationLogger {
     private static final AtomicInteger formatDownscales = new AtomicInteger();
     private static final AtomicInteger depthDownscales = new AtomicInteger();
     private static final AtomicInteger animCaps = new AtomicInteger();
-    private static final AtomicInteger particleRejects = new AtomicInteger();
     private static final AtomicInteger governorActions = new AtomicInteger();
     private static final AtomicInteger budgetWarnings = new AtomicInteger();
     private static final AtomicInteger atlasTracked = new AtomicInteger();
@@ -85,16 +84,13 @@ public class VerificationLogger {
         writeln("  Texture: animLimit=" + c.texture.animationLimit
                 + "(" + c.texture.maxAnimationFrames + ")"
                 + " atlasLimit=" + c.texture.atlasSizeLimit
-                + "(" + c.texture.maxAtlasSize + ")"
-                + " spriteDown=" + c.texture.spriteDownsample
-                + "(" + c.texture.maxSpriteSize + ")");
+                + "(" + c.texture.maxAtlasSize + ")");
         writeln("  Governor: enabled=" + c.governor.enabled
                 + " hyst=" + c.governor.hysteresis + "%"
                 + " minDist=" + c.governor.minDistance
                 + " cooldown=" + c.governor.cooldownTicks + "t");
-        writeln("  Particle: enabled=" + c.particle.enabled
-                + " max=" + c.particle.maxParticles);
-        writeln("  Experimental: pinnedMemory=" + c.experimental.pinnedMemory
+        writeln("  Experimental: showExperimental=" + c.showExperimental
+                + " pinnedMemory=" + c.experimental.pinnedMemory
                 + " minSize=" + c.experimental.pinnedMemoryMinSize + "px");
         writeln("");
         writeln("[Events]");
@@ -157,16 +153,6 @@ public class VerificationLogger {
         }
     }
 
-    // ---- Particle reject ----
-
-    public static void logParticleReject(int currentCount, int maxAllowed) {
-        if (!enabled()) return;
-        int n = particleRejects.incrementAndGet();
-        if (n <= FULL_LOG) {
-            logBoth(String.format("Particle reject #%d: at %d/%d", n, currentCount, maxAllowed));
-        }
-    }
-
     // ---- Governor ----
 
     public static void logGovernorAction(String direction, int oldDist, int newDist,
@@ -221,10 +207,8 @@ public class VerificationLogger {
         LOG.info("{} Governor: enabled={} hyst={}% minDist={} cooldown={}t",
                 PFX, c.governor.enabled, c.governor.hysteresis,
                 c.governor.minDistance, c.governor.cooldownTicks);
-        LOG.info("{} Particle: enabled={} max={}",
-                PFX, c.particle.enabled, c.particle.maxParticles);
-        LOG.info("{} Experimental: pinnedMemory={} minSize={}px",
-                PFX, c.experimental.pinnedMemory, c.experimental.pinnedMemoryMinSize);
+        LOG.info("{} Experimental: showExperimental={} pinnedMemory={} minSize={}px",
+                PFX, c.showExperimental, c.experimental.pinnedMemory, c.experimental.pinnedMemoryMinSize);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
     }
 
@@ -233,10 +217,10 @@ public class VerificationLogger {
     public static String getSummary() {
         return String.format(
                 "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
-                + "Anim caps:%d | Particle rejects:%d | Governor actions:%d | Budget warns:%d | "
+                + "Anim caps:%d | Governor actions:%d | Budget warns:%d | "
                 + "Atlas tracked:%d | Atlas caps:%d",
                 shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
-                animCaps.get(), particleRejects.get(), governorActions.get(),
+                animCaps.get(), governorActions.get(),
                 budgetWarnings.get(), atlasTracked.get(), atlasCaps.get());
     }
 
@@ -258,7 +242,6 @@ public class VerificationLogger {
         formatDownscales.set(0);
         depthDownscales.set(0);
         animCaps.set(0);
-        particleRejects.set(0);
         governorActions.set(0);
         budgetWarnings.set(0);
         atlasTracked.set(0);

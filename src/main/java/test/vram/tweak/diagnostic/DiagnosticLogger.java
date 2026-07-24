@@ -201,6 +201,7 @@ public class DiagnosticLogger {
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
+        sb.append("  Show Experimental: ").append(c.showExperimental).append("\n");
         sb.append("  Experimental:\n");
         sb.append("    Pinned Memory: ").append(c.experimental.pinnedMemory).append("\n");
         sb.append("    Pinned Memory min size: ").append(c.experimental.pinnedMemoryMinSize).append(" px\n");
