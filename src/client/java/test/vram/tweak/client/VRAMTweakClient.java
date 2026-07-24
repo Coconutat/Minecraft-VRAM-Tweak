@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.chat.Component;
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.command.VramTweakCommand;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.vram.VRAMGovernor;
@@ -17,6 +18,12 @@ public class VRAMTweakClient implements ClientModInitializer {
         VRAMTweak.LOGGER.info("VRAM optimizer. enabled={}, shadowCap={}, downscale={}, budget={}",
                 cfg.vram.enabled, cfg.vram.shadowMapMaxSize,
                 cfg.vram.formatDownscale, cfg.vram.budgetTracking);
+
+        // AllocTracker: activate if config says so (no restart needed)
+        if (cfg.diagnostic.allocTracker) {
+            VramAllocationTracker.getInstance().activate();
+        }
+
         VRAMGovernor.initialize();
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->

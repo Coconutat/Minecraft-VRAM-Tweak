@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
+import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.vram.VRAMGovernor;
@@ -239,6 +240,37 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.diagnostic.verificationLog = v)
                 .build());
 
+        diag.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.allocTracker"),
+                        cfg.diagnostic.allocTracker)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocTracker.tooltip"))
+                .setSaveConsumer(v -> {
+                    cfg.diagnostic.allocTracker = v;
+                    if (v) {
+                        VramAllocationTracker.getInstance().activate();
+                    } else {
+                        VramAllocationTracker.getInstance().deactivate();
+                    }
+                })
+                .build());
+
+        diag.addEntry(eb.startIntSlider(
+                        Component.translatable("vramtweak.gui.option.allocSnapshotInterval"),
+                        cfg.diagnostic.allocSnapshotInterval, 5, 120)
+                .setDefaultValue(30)
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocSnapshotInterval.tooltip"))
+                .setSaveConsumer(v -> cfg.diagnostic.allocSnapshotInterval = v)
+                .build());
+
+        diag.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.allocLogIndividual"),
+                        cfg.diagnostic.allocLogIndividual)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocLogIndividual.tooltip"))
+                .setSaveConsumer(v -> cfg.diagnostic.allocLogIndividual = v)
+                .build());
+
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.hud.enabled"),
                         cfg.hud.enabled)
@@ -342,6 +374,14 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.showGovernor = v)
                 .build());
 
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showAllocBreakdown"),
+                        cfg.hud.showAllocBreakdown)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.showAllocBreakdown.tooltip"))
+                .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
+                .build());
+
         hud.addEntry(eb.startIntSlider(
                         Component.translatable("vramtweak.gui.option.bgAlpha"),
                         (int)(cfg.hud.bgAlpha * 100), 0, 80)
@@ -383,6 +423,16 @@ public class ClothConfigFactory {
                         String.valueOf(MetricsEngine.getTextureAllocs()))
                 .setDefaultValue("0")
                 .setTooltip(Component.translatable("vramtweak.gui.option.textureAllocs.tooltip"))
+                .build());
+
+        info.addEntry(eb.startStrField(
+                        Component.translatable("vramtweak.gui.option.allocTracked"),
+                        VramAllocationTracker.getInstance().isActive()
+                                ? VramAllocationTracker.getInstance().getAliveCount() + " alive / "
+                                  + VramAllocationTracker.getInstance().getTotalAllocs() + " total"
+                                : Component.translatable("vramtweak.gui.option.allocTracker.disabled").getString())
+                .setDefaultValue("disabled")
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocTracked.tooltip"))
                 .build());
 
         return builder.build();

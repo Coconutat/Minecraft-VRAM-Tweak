@@ -10,6 +10,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
+import test.vram.tweak.allocation.AllocationCategory;
+import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
@@ -137,6 +139,42 @@ public class VramTweakHud {
                 textList.add(Component.literal(label + " §eRD≤" + cap));
             } else {
                 textList.add(Component.literal(label + " §aOK"));
+            }
+        }
+
+        // ---- Alloc breakdown ----
+        if (hud.showAllocBreakdown) {
+            var tracker = VramAllocationTracker.getInstance();
+            if (tracker.isActive()) {
+                var summary = tracker.computeSummary();
+                long texMB = (summary.getBytesFor(AllocationCategory.TEXTURE_ATLAS)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_BLOCK)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ENTITY)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ITEM)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ENVIRONMENT)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_FONT)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_GUI)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_PAINTING)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_MISC)) / (1024 * 1024);
+                long rtMB = (summary.getBytesFor(AllocationCategory.RENDER_TARGET_COLOR)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_DEPTH)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_SHADOW)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_MULTISAMPLE)) / (1024 * 1024);
+                var label = Component.translatable("vramtweak.hud.alloc").getString();
+                StringBuilder sb = new StringBuilder(label);
+                if (texMB > 0) {
+                    var texLabel = Component.translatable("vramtweak.hud.alloc.tex").getString();
+                    sb.append(" ").append(texLabel).append(":").append(texMB).append("MB");
+                }
+                if (rtMB > 0) {
+                    var rtLabel = Component.translatable("vramtweak.hud.alloc.rt").getString();
+                    sb.append(" ").append(rtLabel).append(":").append(rtMB).append("MB");
+                }
+                if (texMB == 0 && rtMB == 0) {
+                    var unknownLabel = Component.translatable("vramtweak.hud.alloc.unknown").getString();
+                    sb.append(" ").append(unknownLabel).append(":...MB");
+                }
+                textList.add(Component.literal(sb.toString()));
             }
         }
 

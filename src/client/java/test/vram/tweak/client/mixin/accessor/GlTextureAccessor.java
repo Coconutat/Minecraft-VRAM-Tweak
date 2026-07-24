@@ -7,5 +7,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(GlTexture.class)
 public interface GlTextureAccessor {
     @Accessor("id")
-    int getId();
+    int vramtweak$getId();
 }

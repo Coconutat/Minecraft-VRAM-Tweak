@@ -5,7 +5,7 @@
 	"name": "VRAM Tweak",
 	"description": "VRAM optimization for low VRAM GPUs — shadow map cap, format downscale, budget tracking. Compatible with Iris & Sodium. Without Deepseek, this mod would not exist.",
 	"authors": ["Coconutat", "Deepseek V4"],
-	"license": "CC0 1.0 Universal",
+	"license": "CC0-1.0",
 	"environment": "client",
 	"entrypoints": {
 		"client": ["test.vram.tweak.client.VRAMTweakClient"],

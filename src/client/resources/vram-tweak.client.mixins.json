@@ -15,7 +15,9 @@
 		"MixinMinecraft_Hud",
 		"MixinScreen_RestartWarning",
 		"MixinGameRenderer_PerfMonitor",
-		"MixinGlStateManager_PinnedMemory"
+		"MixinGlStateManager_PinnedMemory",
+		"MixinGlStateManager_AllocTracker",
+		"MixinGlFramebuffer_AllocTracker"
 	],
 	"injectors": {
 		"defaultRequire": 1

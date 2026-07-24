@@ -162,6 +162,17 @@ public class VRAMConfig {
 
         @SerializedName("logDirectory")
         public String logDirectory = "logs/vram-tweak";
+
+        // ---- AllocTracker sub-section ----
+
+        @SerializedName("allocTracker")
+        public boolean allocTracker = false;
+
+        @SerializedName("allocSnapshotInterval")
+        public int allocSnapshotInterval = 30;
+
+        @SerializedName("allocLogIndividual")
+        public boolean allocLogIndividual = false;
     }
 
     // ---- HUD section ----
@@ -217,6 +228,9 @@ public class VRAMConfig {
 
         @SerializedName("showGovernor")
         public boolean showGovernor = true;
+
+        @SerializedName("showAllocBreakdown")
+        public boolean showAllocBreakdown = false;
 
         @SerializedName("showDrawCalls")
         public boolean showDrawCalls = false;
