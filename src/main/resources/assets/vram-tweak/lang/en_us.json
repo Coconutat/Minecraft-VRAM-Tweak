@@ -100,6 +100,7 @@
   "vramtweak.command.benchmark.results": "§b=== Benchmark Results ===§f \n          §7OFF§f         §aON§f \nFPS avg:  §7%.1f§f     §a%.1f§f \nFPS min:  §7%.1f§f     §a%.1f§f \nFPS max:  §7%.1f§f     §a%.1f§f \nVRAM avg: §7%dMB§f     §a%dMB",
   "vramtweak.command.benchmark.interrupted": "§cBenchmark interrupted.",
   "vramtweak.command.benchmark.failed": "§cBenchmark failed: %s",
+  "vramtweak.command.allocreport.disabled": "§cAllocTracker is not enabled. Turn on 'Diagnostics → VRAM AllocTracker' in config.",
   "vramtweak.hud.gpu": "§bGPU:",
   "vramtweak.hud.fps": "§bFPS:",
   "vramtweak.hud.frametime": "§bFT:",

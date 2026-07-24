@@ -84,4 +84,29 @@ public enum AllocationCategory {
         return this == BUFFER_GEOMETRY || this == BUFFER_UNIFORM
             || this == BUFFER_PIXEL || this == BUFFER_STORAGE;
     }
+
+    /** Human-readable name for command/HUD output. */
+    public String getDisplayName() {
+        return switch (this) {
+            case TEXTURE_ATLAS -> "TexAtlas";
+            case TEXTURE_BLOCK -> "TexBlock";
+            case TEXTURE_ENTITY -> "TexEntity";
+            case TEXTURE_ITEM -> "TexItem";
+            case TEXTURE_ENVIRONMENT -> "TexEnv";
+            case TEXTURE_FONT -> "TexFont";
+            case TEXTURE_GUI -> "TexGUI";
+            case TEXTURE_PAINTING -> "TexPaint";
+            case TEXTURE_MISC -> "TexMisc";
+            case RENDER_TARGET_COLOR -> "RT_Color";
+            case RENDER_TARGET_DEPTH -> "RT_Depth";
+            case RENDER_TARGET_SHADOW -> "RT_Shadow";
+            case RENDER_TARGET_MULTISAMPLE -> "RT_MSAA";
+            case BUFFER_GEOMETRY -> "BufGeo";
+            case BUFFER_UNIFORM -> "BufUni";
+            case BUFFER_PIXEL -> "BufPix";
+            case BUFFER_STORAGE -> "BufSSBO";
+            case FRAMEBUFFER -> "FBO";
+            case UNKNOWN -> "?";
+        };
+    }
 }

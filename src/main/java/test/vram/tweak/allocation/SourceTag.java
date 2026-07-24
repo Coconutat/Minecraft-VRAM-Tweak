@@ -111,4 +111,27 @@ public enum SourceTag {
 
         return UNKNOWN_SOURCE;
     }
+
+    /** Human-readable name for command/HUD output. */
+    public String getDisplayName() {
+        return switch (this) {
+            case ATLAS_BLOCKS -> "BlocksAtlas";
+            case ATLAS_ITEMS -> "ItemsAtlas";
+            case ATLAS_BANNER -> "BannerAtlas";
+            case ATLAS_SHIELD -> "ShieldAtlas";
+            case ATLAS_PAINTING -> "PaintAtlas";
+            case ATLAS_MISC -> "MiscAtlas";
+            case SODIUM_TERRAIN -> "SodiumTerrain";
+            case IRIS_GBUFFER -> "IrisGBuffer";
+            case IRIS_SHADOW -> "IrisShadow";
+            case IRIS_COMPOSITE -> "IrisComposite";
+            case IRIS_TEMPORAL -> "IrisTemporal";
+            case MC_SKYBOX -> "Skybox";
+            case MC_ENTITY -> "Entity";
+            case MC_FONT -> "Font";
+            case MC_GUI -> "GUI";
+            case MC_PARTICLE -> "Particle";
+            case UNKNOWN_SOURCE -> "?";
+        };
+    }
 }
