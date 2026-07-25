@@ -27,7 +27,7 @@ public class VRAMGovernor {
     private static int cooldownTicks;
 
     // State
-    private static int currentCap = Integer.MAX_VALUE;   // effective cap
+    private static int currentCap = 32;           // effective cap (start at max render distance)
     private static int originalDistance = -1;             // user's setting
     private static int cooldown;
     private static boolean irisActive;
@@ -48,7 +48,7 @@ public class VRAMGovernor {
         minDistance = cfg.minDistance;
         cooldownTicks = cfg.cooldownTicks;
         irisActive = ModCompat.isIrisLoaded();
-        currentCap = Integer.MAX_VALUE;
+        currentCap = 32;
         originalDistance = -1;
         cooldown = 0;
         underPressure = false;
@@ -98,7 +98,7 @@ public class VRAMGovernor {
             // Restore in one shot when pressure is gone
             underPressure = false;
             int prevCap = currentCap;
-            currentCap = Integer.MAX_VALUE;
+            currentCap = 32;
             originalDistance = -1;
             cooldown = stepCooldown;
             VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
@@ -112,16 +112,16 @@ public class VRAMGovernor {
      * @return capped value, or original if governor disabled / not active
      */
     public static int capRenderDistance(int original) {
-        if (!enabled || currentCap == Integer.MAX_VALUE) return original;
+        if (!enabled || currentCap >= 32) return original;
         if (originalDistance < 0) originalDistance = original;
         return Math.min(original, currentCap);
     }
 
-    /** Current effective render distance cap (or MAX_VALUE if no cap). */
+    /** Current effective render distance cap (or 32 if no cap). */
     public static int getCurrentCap() { return currentCap; }
 
     /** Whether the governor is actively capping render distance. */
-    public static boolean isCapping() { return enabled && currentCap < Integer.MAX_VALUE; }
+    public static boolean isCapping() { return enabled && currentCap < 32; }
 
     public static boolean isEnabled() { return enabled; }
 }
