@@ -10,11 +10,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 
+import test.vram.tweak.allocation.AllocationCategory;
+import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.client.gpu.AMDPerfMonitor;
 import test.vram.tweak.diagnostic.VramFrameCounter;
+import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
+import test.vram.tweak.gpu.GPUInfo;
+import test.vram.tweak.util.ModCompat;
 
 /**
  * HUD overlay for vram-tweak. Singleton — shared by tick and render mixins.
@@ -66,7 +72,24 @@ public class VramTweakHud {
 
         // ---- GPU line ----
         if (hud.showGpu) {
-            textList.add(Component.literal("§bGPU:§f " + GPUDetector.getRenderer()));
+            StringBuilder gpuLine = new StringBuilder("§bGPU:§f " + GPUDetector.getRenderer());
+            String arch = GPUDetector.getAmdArchDisplay();
+            if (!"N/A".equals(arch)) {
+                gpuLine.append(" §7(").append(arch).append(")§f");
+            }
+            textList.add(Component.literal(gpuLine.toString()));
+        }
+
+        // ---- GPU Clocks (AMD performance monitor) ----
+        if (hud.showGpuClocks && AMDPerfMonitor.isAvailable()) {
+            long core = AMDPerfMonitor.getCoreClockMHz();
+            long mem  = AMDPerfMonitor.getMemClockMHz();
+            float busy = AMDPerfMonitor.getGpuBusyPct();
+            StringBuilder sb = new StringBuilder("§bClk:§f ");
+            if (core > 0) sb.append(core).append("MHz");
+            if (mem > 0)  sb.append(" §bM:§f").append(mem).append("MHz");
+            if (busy >= 0) sb.append(" §bBusy:§f").append(String.format("%.0f%%", busy));
+            textList.add(Component.literal(sb.toString()));
         }
 
         // ---- VRAM line ----
@@ -75,11 +98,12 @@ public class VramTweakHud {
             int pct = total > 0 ? (int)(currentVramMB * 100 / total) : 0;
             String color = pct >= 80 ? "§c" : pct >= 60 ? "§e" : "§a";
             var label = Component.translatable("vramtweak.hud.vram").getString();
-            if (GPUDetector.getGPU().isAMD() && total > 0) {
-                // AMD: show only used MB + percentage (total is approximated)
+            boolean reliableTotal = isVramTotalReliable();
+            if (GPUDetector.getGPU().isAMD() && total > 0 && !reliableTotal) {
+                // AMD, total approximated: show only used MB + percentage
                 textList.add(Component.literal(label + " " + color + currentVramMB + "MB §f(" + color + pct + "%§f)"));
             } else {
-                // NVIDIA / Intel: show used/totalMB (percentage)
+                // NVIDIA / Intel / AMD with reliable total: show used/totalMB (percentage)
                 textList.add(Component.literal(label + " " + color + currentVramMB + "§f/§b" + total + "MB §f(" + color + pct + "%§f)"));
             }
         }
@@ -106,15 +130,64 @@ public class VramTweakHud {
             textList.add(Component.literal(label + " " + depthColor + "D→D16×" + depth + "§f, " + fmtColor + "Fmt×" + fmt));
         }
 
+        // ---- Governor status ----
+        if (hud.showGovernor) {
+            boolean capping = test.vram.tweak.vram.VRAMGovernor.isCapping();
+            int cap = test.vram.tweak.vram.VRAMGovernor.getCurrentCap();
+            var label = Component.translatable("vramtweak.hud.governor").getString();
+            if (capping) {
+                textList.add(Component.literal(label + " §eRD≤" + cap));
+            } else {
+                textList.add(Component.literal(label + " §aOK"));
+            }
+        }
+
+        // ---- Alloc breakdown ----
+        if (hud.showAllocBreakdown) {
+            var tracker = VramAllocationTracker.getInstance();
+            if (tracker.isActive()) {
+                var summary = tracker.computeSummary();
+                long texMB = (summary.getBytesFor(AllocationCategory.TEXTURE_ATLAS)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_BLOCK)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ENTITY)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ITEM)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_ENVIRONMENT)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_FONT)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_GUI)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_PAINTING)
+                        + summary.getBytesFor(AllocationCategory.TEXTURE_MISC)) / (1024 * 1024);
+                long rtMB = (summary.getBytesFor(AllocationCategory.RENDER_TARGET_COLOR)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_DEPTH)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_SHADOW)
+                        + summary.getBytesFor(AllocationCategory.RENDER_TARGET_MULTISAMPLE)) / (1024 * 1024);
+                var label = Component.translatable("vramtweak.hud.alloc").getString();
+                StringBuilder sb = new StringBuilder(label);
+                if (texMB > 0) {
+                    var texLabel = Component.translatable("vramtweak.hud.alloc.tex").getString();
+                    sb.append(" ").append(texLabel).append(":").append(texMB).append("MB");
+                }
+                if (rtMB > 0) {
+                    var rtLabel = Component.translatable("vramtweak.hud.alloc.rt").getString();
+                    sb.append(" ").append(rtLabel).append(":").append(rtMB).append("MB");
+                }
+                if (texMB == 0 && rtMB == 0) {
+                    var unknownLabel = Component.translatable("vramtweak.hud.alloc.unknown").getString();
+                    sb.append(" ").append(unknownLabel).append(":...MB");
+                }
+                textList.add(Component.literal(sb.toString()));
+            }
+        }
+
         // ---- Budget status ----
         if (hud.showBudget) {
             long total = MetricsEngine.getVramTotalMB();
             int peakPct = total > 0 ? (int)(peakVramMB * 100 / total) : 0;
             int warns = VerificationLogger.getBudgetWarnings();
+            String irisTag = ModCompat.isIrisLoaded() ? " §d[Iris]" : "";
             String status = warns > 0 ? "§cWARN×" + warns : Component.translatable("vramtweak.hud.budget.ok").getString();
             var label = Component.translatable("vramtweak.hud.budget").getString();
             String peakColor = peakPct >= 80 ? "§c" : "§a";
-            textList.add(Component.literal(label + " " + status + " §f(peak " + peakColor + peakPct + "%§f)"));
+            textList.add(Component.literal(label + " " + status + irisTag + " §f(peak " + peakColor + peakPct + "%§f)"));
         }
 
         // One-shot trace: log HUD content after first 5 ticks
@@ -146,4 +219,16 @@ public class VramTweakHud {
     public int getTextLineCount() { return textList.size(); }
     public int getCurrentSmoothFps() { return currentSmoothFps; }
     public long getCurrentVramMB() { return currentVramMB; }
+
+    /**
+     * Check if the VRAM total is from a reliable source (model lookup or NVX).
+     * On AMD, calibration-based totals are approximated; model-based are exact.
+     */
+    private static boolean isVramTotalReliable() {
+        if (!GPUDetector.getGPU().isAMD()) return true; // NVX is exact
+        var info = GPUDetector.getGPUInfo();
+        if (info == null) return false;
+        long known = AmdVramLookup.lookup(info.getAmdArch(), info.getAmdModelName());
+        return known > 0;
+    }
 }

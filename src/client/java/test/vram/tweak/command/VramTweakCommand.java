@@ -1,11 +1,16 @@
 package test.vram.tweak.command;
 
+import java.util.Map;
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.allocation.AllocationCategory;
+import test.vram.tweak.allocation.VramAllocSummary;
+import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.gpu.GPUDetector;
@@ -28,6 +33,7 @@ public class VramTweakCommand {
                     .executes(ctx -> benchmark(ctx.getSource(),
                             IntegerArgumentType.getInteger(ctx, "seconds"))))
                 .executes(ctx -> benchmark(ctx.getSource(), 30)))
+            .then(literal("allocreport").executes(ctx -> allocReport(ctx.getSource())))
         );
     }
 
@@ -103,6 +109,53 @@ public class VramTweakCommand {
     private static int benchmark(FabricClientCommandSource src, int seconds) {
         src.sendFeedback(Component.translatable("vramtweak.command.benchmark.start", seconds));
         BenchmarkRunner.start(seconds, src);
+        return 1;
+    }
+
+    private static int allocReport(FabricClientCommandSource src) {
+        var tracker = VramAllocationTracker.getInstance();
+        if (!tracker.isActive()) {
+            src.sendFeedback(Component.translatable("vramtweak.command.allocreport.disabled"));
+            return 1;
+        }
+
+        var summary = tracker.computeSummary();
+        long glUsed = MetricsEngine.getVramUsedMB();
+        long glTotal = MetricsEngine.getVramTotalMB();
+        long trackedMB = summary.aliveEstimatedBytes() / (1024 * 1024);
+
+        src.sendFeedback(Component.literal(
+                "§b=== VRAM Allocation Report ===§f  §7(" + glUsed + "/" + glTotal + "MB GL, tracked " + trackedMB + "MB)"));
+        src.sendFeedback(Component.literal(
+                "§7Allocs: " + summary.totalAllocations() + " total, " + summary.aliveAllocations() + " alive"));
+
+        var sortedCats = summary.byCategory().entrySet().stream()
+                .sorted(Map.Entry.<AllocationCategory, Long>comparingByValue().reversed())
+                .toList();
+        src.sendFeedback(Component.literal("§6── By Category ──"));
+        for (var e : sortedCats) {
+            long mb = e.getValue() / (1024 * 1024);
+            if (mb == 0) continue;
+            String pct = trackedMB > 0 ? String.format("(%.0f%%)", e.getValue() * 100f / summary.aliveEstimatedBytes()) : "";
+            src.sendFeedback(Component.literal(
+                    "  §e" + e.getKey().getDisplayName() + "§f: " + mb + "MB " + pct));
+        }
+
+        var top = summary.topAllocations();
+        if (!top.isEmpty()) {
+            src.sendFeedback(Component.literal("§6── Top " + Math.min(top.size(), 10) + " Largest ──"));
+            int shown = 0;
+            for (var r : top) {
+                if (shown++ >= 10) break;
+                String size = VramAllocSummary.toMB(r.getEstimatedBytes());
+                String dim = r.getWidth() > 0 ? r.getWidth() + "x" + r.getHeight() : "?";
+                src.sendFeedback(Component.literal(
+                        "  §e#" + r.getGlObjectId() + "§f: " + size + " §7" + dim
+                        + " " + r.getCategory().getDisplayName()
+                        + " §8[" + r.getSource().getDisplayName() + "]"));
+            }
+        }
+
         return 1;
     }
 }

@@ -1,22 +1,23 @@
 {
 	"required": true,
 	"package": "test.vram.tweak.client.mixin",
-	"compatibilityLevel": "JAVA_25",
+	"compatibilityLevel": "JAVA_21",
 	"client": [
-    "accessor.SpriteContentsAccessor",
-    "accessor.GlTextureAccessor",
-    "accessor.GameRendererAccessor",
-    "MixinMinecraftClient_Init",
-    "MixinGpuDevice_VRAMOptimize",
-    "MixinGameRenderer_Metrics",
-    "MixinGameRenderer_CAS",
-    "MixinOptions_RenderDistance",
-    "MixinSpriteContents_AnimationLimit",
-    "MixinParticleEngine_Cap",
-    "MixinGui_Hud",
-    "MixinMinecraft_Hud",
-    "MixinScreen_RestartWarning"
-  ],
+		"accessor.SpriteContentsAccessor",
+		"accessor.GlTextureAccessor",
+		"MixinMinecraftClient_Init",
+		"MixinGpuDevice_VRAMOptimize",
+		"MixinGameRenderer_Metrics",
+		"MixinOptions_RenderDistance",
+		"MixinSpriteContents_AnimationLimit",
+		"MixinGui_Hud",
+		"MixinMinecraft_Hud",
+		"MixinScreen_RestartWarning",
+		"MixinGameRenderer_PerfMonitor",
+		"MixinGlStateManager_PinnedMemory",
+		"MixinGlStateManager_AllocTracker",
+		"MixinGlFramebuffer_AllocTracker"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	}

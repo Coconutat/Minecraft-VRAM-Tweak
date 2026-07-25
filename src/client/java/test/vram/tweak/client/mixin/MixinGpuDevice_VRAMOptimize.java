@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Supplier;
 
 import test.vram.tweak.VRAMTweak;
+import test.vram.tweak.allocation.AllocLabelBridge;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -46,6 +47,7 @@ public class MixinGpuDevice_VRAMOptimize {
     private Supplier<String> captureLabel(Supplier<String> label) {
         try {
             String name = label.get();
+            AllocLabelBridge.set(name); // bridge to B-layer AllocTracker
             boolean isAtlas = name != null && name.contains("atlas");
             IS_ATLAS.set(isAtlas);
             ATLAS_NAME.set(isAtlas ? name : null);

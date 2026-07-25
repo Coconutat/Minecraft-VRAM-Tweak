@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.gpu.GPUType;
 
@@ -144,8 +145,9 @@ public class VRAMOptimizer {
         } catch (Exception e) { return -1; }
     }
 
-    // Intel: try NVX first (modern Intel Arc DG2+), fallback to ATI for legacy iGPUs.
+    // Intel also supports GL_ATI_meminfo on many iGPUs; fallback to same path.
     private static long queryFreeVRAM_INTEL() {
+        // ponytail: try NVX first (modern Intel Arc DG2+), fallback to ATI
         if (hasGLExt("GL_NVX_gpu_memory_info")) {
             try {
                 int[] result = new int[1];
@@ -169,17 +171,32 @@ public class VRAMOptimizer {
         try {
             return switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    // 1. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
+                    // Query free VRAM early — used as hint for model lookup disambiguation
+                    long freeKB = queryFreeVRAM_AMD();
+                    long freeMB = freeKB > 0 ? freeKB / 1024 : 0;
+
+                    // 1. Model-based lookup (most accurate)
+                    var info = GPUDetector.getGPUInfo();
+                    if (info != null) {
+                        long knownMB = AmdVramLookup.lookup(info.getAmdArch(), info.getAmdModelName(), freeMB);
+                        if (knownMB > 0) {
+                            // Reserve ~2.5% for driver overhead, same as roundTotalMB
+                            long usable = knownMB * 975 / 1000;
+                            if (calibrationTotalKB == 0) calibrationTotalKB = usable * 1024;
+                            yield usable;
+                        }
+                    }
+                    // 2. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
                     if (hasGLExt("GL_NVX_gpu_memory_info")) {
                         int[] result = new int[1];
                         GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
                         long kb = result[0] & 0xFFFFFFFFL;
                         if (kb > 0) { calibrationTotalKB = kb; yield kb / 1024; }
                     }
-                    // 2. Use calibration value rounded to nearest known VRAM size
+                    // 3. Use calibration value rounded to nearest known VRAM size
                     if (calibrationTotalKB > 0) yield roundTotalMB(calibrationTotalKB / 1024);
-                    // 3. Calibrate now
-                    long freeKB = queryFreeVRAM_AMD();
+                    // 4. Calibrate now (reuse freeKB from hint query above)
+                    if (freeKB <= 0) freeKB = queryFreeVRAM_AMD();
                     if (freeKB > 0) { calibrationTotalKB = freeKB; yield roundTotalMB(freeKB / 1024); }
                     yield 0L;
                 }
@@ -205,7 +222,7 @@ public class VRAMOptimizer {
         } catch (Exception e) { return 0; }
     }
 
-    /** Estimate total VRAM. Deprecated — use queryTotalVRAM(). */
+    /** Estimate total VRAM in MB. */
     public static long estimateTotalMB() {
         long total = queryTotalVRAM();
         if (total > 0) return total;
@@ -232,20 +249,10 @@ public class VRAMOptimizer {
 
         long freeKB = queryFreeVRAM();
         long totalMB = queryTotalVRAM();
-        if (freeKB <= 0 || totalMB <= 0) {
-            LOGGER.debug("[TRACE] VRAMOptimizer.onFrameEnd skipped (freeKB={}, totalMB={})",
-                    freeKB, totalMB);
-            return;
-        }
+        if (freeKB <= 0 || totalMB <= 0) return;
 
-        long freeMB = freeKB / 1024;
-        long usedMB = totalMB - freeMB;
+        long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * budgetPercent / 100;
-
-        LOGGER.debug("[TRACE] VRAMOptimizer.onFrameEnd: used={}MB/{}MB threshold={}MB overBudget={} cooldown={}",
-                usedMB, totalMB, thresholdMB, overBudget, cooldown);
-
-        MetricsEngine.setVramUsed(usedMB);
 
         if (usedMB > thresholdMB) {
             if (!overBudget && cooldown <= 0) {
@@ -267,27 +274,17 @@ public class VRAMOptimizer {
 
     // ---- format downscale ----
 
-    /** Only downscale 16-bit color formats. Never touch depth/stencil. */
+    /** Only downscale 16-bit color formats. 1.21.11 TextureFormat only has RGBA8 — no-op. */
     public static boolean shouldDownscaleFormat(String formatName) {
-        boolean result = enabled && formatDownscale && formatName != null;
-        if (!result) {
-            LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = false (enabled={}, formatDownscale={})",
-                    formatName, enabled, formatDownscale);
-            return false;
-        }
-        if (formatName.startsWith("D") || formatName.startsWith("S")) {
-            LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = false (depth/stencil, skipped)", formatName);
-            return false;
-        }
-        boolean should = formatName.contains("16");
-        LOGGER.debug("[TRACE] shouldDownscaleFormat({}) = {}", formatName, should);
-        return should;
+        if (!enabled || !formatDownscale || formatName == null) return false;
+        if (formatName.startsWith("D") || formatName.startsWith("S")) return false;
+        return formatName.contains("16"); // ponytail: dormant, TextureFormat has no 16-bit in 1.21.11
     }
 
     public static void logDownscale(String source, String original) {
         VerificationLogger.logFormatDownscale(source, original, "RGBA8");
         if (downscaleLogs < MAX_LOGS) {
-            LOGGER.debug("Format downscale: {} ({} 鈫?RGBA8)", source, original);
+            LOGGER.debug("Format downscale: {} ({} → RGBA8)", source, original);
             downscaleLogs++;
         } else if (downscaleLogs == MAX_LOGS) {
             LOGGER.debug("Format downscale log limit reached.");
@@ -301,33 +298,27 @@ public class VRAMOptimizer {
         return Math.min(size, maxShadowSize);
     }
 
-    /** Only cap if master AND shadowCapEnabled both ON, and texture exceeds maxShadowSize, and is square (shadow maps are always square). */
+    /** Only cap if enabled + shadowCapEnabled AND the texture exceeds maxShadowSize AND is square (shadow maps are always square). */
     public static boolean shouldCap(int width, int height) {
-        boolean result = enabled && shadowCapEnabled && width == height && width > maxShadowSize;
-        LOGGER.debug("[TRACE] shouldCap({}x{}) = {} (enabled={}, shadowCap={}, maxShadowSize={})",
-                width, height, result, enabled, shadowCapEnabled, maxShadowSize);
-        return result;
+        return enabled && shadowCapEnabled && width == height && width > maxShadowSize;
     }
 
-    /** Depth formats start with "D" (D16_UNORM, D24_UNORM_S8_UINT, D32_FLOAT, etc.). */
+    /** Depth formats — 1.21.11 TextureFormat: DEPTH32 starts with "D". */
     public static boolean isDepthFormat(String formatName) {
         return formatName != null && formatName.startsWith("D");
     }
 
     // ---- depth downscale ----
 
-    /** D32_FLOAT 鈫?D16_UNORM for shadow maps. Only pure depth, no stencil. */
+    /** 1.21.11 TextureFormat only has DEPTH32, no lower depth format — no-op. */
     public static boolean shouldDownscaleDepth(String formatName) {
-        boolean result = enabled && depthDownscale && "D32_FLOAT".equals(formatName);
-        LOGGER.debug("[TRACE] shouldDownscaleDepth({}) = {} (enabled={}, depthDownscale={})",
-                formatName, result, enabled, depthDownscale);
-        return result;
+        return enabled && depthDownscale && "DEPTH32".equals(formatName);
     }
 
     public static void logDepthDownscale(String original) {
-        VerificationLogger.logDepthDownscale(original, "D16_UNORM");
+        VerificationLogger.logDepthDownscale(original, "DEPTH32");
         if (downscaleLogs < MAX_LOGS) {
-            LOGGER.debug("Depth downscale: {} 鈫?D16_UNORM", original);
+            LOGGER.debug("Depth downscale: {} (1.21.11: no lower depth format)", original);
             downscaleLogs++;
         } else if (downscaleLogs == MAX_LOGS) {
             LOGGER.debug("Downscale log limit reached.");

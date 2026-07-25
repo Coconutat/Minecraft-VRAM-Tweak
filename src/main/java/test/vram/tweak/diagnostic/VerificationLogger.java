@@ -40,12 +40,11 @@ public class VerificationLogger {
     private static final AtomicInteger formatDownscales = new AtomicInteger();
     private static final AtomicInteger depthDownscales = new AtomicInteger();
     private static final AtomicInteger animCaps = new AtomicInteger();
-    private static final AtomicInteger particleRejects = new AtomicInteger();
     private static final AtomicInteger governorActions = new AtomicInteger();
     private static final AtomicInteger budgetWarnings = new AtomicInteger();
     private static final AtomicInteger atlasTracked = new AtomicInteger();
     private static final AtomicInteger atlasCaps = new AtomicInteger();
-    private static final AtomicInteger casFrames = new AtomicInteger();
+
 
     private static boolean enabled() {
         return VRAMConfig.getInstance().diagnostic.verificationLog;
@@ -85,17 +84,14 @@ public class VerificationLogger {
         writeln("  Texture: animLimit=" + c.texture.animationLimit
                 + "(" + c.texture.maxAnimationFrames + ")"
                 + " atlasLimit=" + c.texture.atlasSizeLimit
-                + "(" + c.texture.maxAtlasSize + ")"
-                + " spriteDown=" + c.texture.spriteDownsample
-                + "(" + c.texture.maxSpriteSize + ")");
+                + "(" + c.texture.maxAtlasSize + ")");
         writeln("  Governor: enabled=" + c.governor.enabled
                 + " hyst=" + c.governor.hysteresis + "%"
                 + " minDist=" + c.governor.minDistance
                 + " cooldown=" + c.governor.cooldownTicks + "t");
-        writeln("  Particle: enabled=" + c.particle.enabled
-                + " max=" + c.particle.maxParticles);
-        writeln("  CAS: enabled=" + c.cas.enabled
-                + " sharpness=" + c.cas.sharpness);
+        writeln("  Experimental: showExperimental=" + c.showExperimental
+                + " pinnedMemory=" + c.experimental.pinnedMemory
+                + " minSize=" + c.experimental.pinnedMemoryMinSize + "px");
         writeln("");
         writeln("[Events]");
         fileWriter.flush();
@@ -157,16 +153,6 @@ public class VerificationLogger {
         }
     }
 
-    // ---- Particle reject ----
-
-    public static void logParticleReject(int currentCount, int maxAllowed) {
-        if (!enabled()) return;
-        int n = particleRejects.incrementAndGet();
-        if (n <= FULL_LOG) {
-            logBoth(String.format("Particle reject #%d: at %d/%d", n, currentCount, maxAllowed));
-        }
-    }
-
     // ---- Governor ----
 
     public static void logGovernorAction(String direction, int oldDist, int newDist,
@@ -206,22 +192,6 @@ public class VerificationLogger {
         }
     }
 
-    // ---- CAS sharpening ----
-
-    public static void logCasInit(int glProgram) {
-        if (!enabled()) return;
-        logBoth(String.format("CAS shader initialized: program=%d", glProgram));
-    }
-
-    public static void logCasFrame(int frame, int w, int h, float sharpness) {
-        if (!enabled()) return;
-        casFrames.incrementAndGet();
-        // Log first frame, then every 600 frames (~10s)
-        if (frame == 1 || frame % 600 == 0) {
-            logBoth(String.format("CAS frame #%d: %dx%d sharpness=%.1f", frame, w, h, sharpness));
-        }
-    }
-
     // ---- Config snapshot (SLF4J only — file header already has it) ----
 
     public static void logConfigSnapshot() {
@@ -237,10 +207,8 @@ public class VerificationLogger {
         LOG.info("{} Governor: enabled={} hyst={}% minDist={} cooldown={}t",
                 PFX, c.governor.enabled, c.governor.hysteresis,
                 c.governor.minDistance, c.governor.cooldownTicks);
-        LOG.info("{} Particle: enabled={} max={}",
-                PFX, c.particle.enabled, c.particle.maxParticles);
-        LOG.info("{} CAS: enabled={} sharpness={}",
-                PFX, c.cas.enabled, c.cas.sharpness);
+        LOG.info("{} Experimental: showExperimental={} pinnedMemory={} minSize={}px",
+                PFX, c.showExperimental, c.experimental.pinnedMemory, c.experimental.pinnedMemoryMinSize);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
     }
 
@@ -249,12 +217,11 @@ public class VerificationLogger {
     public static String getSummary() {
         return String.format(
                 "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
-                + "Anim caps:%d | Particle rejects:%d | Governor actions:%d | Budget warns:%d | "
-                + "Atlas tracked:%d | Atlas caps:%d | CAS frames:%d",
+                + "Anim caps:%d | Governor actions:%d | Budget warns:%d | "
+                + "Atlas tracked:%d | Atlas caps:%d",
                 shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
-                animCaps.get(), particleRejects.get(), governorActions.get(),
-                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get(),
-                casFrames.get());
+                animCaps.get(), governorActions.get(),
+                budgetWarnings.get(), atlasTracked.get(), atlasCaps.get());
     }
 
     public static synchronized void shutdown() {
@@ -271,10 +238,14 @@ public class VerificationLogger {
     }
 
     public static void reset() {
-        shadowCaps.set(0); formatDownscales.set(0); depthDownscales.set(0);
-        animCaps.set(0); particleRejects.set(0); governorActions.set(0);
-        budgetWarnings.set(0); atlasTracked.set(0); atlasCaps.set(0);
-        casFrames.set(0);
+        shadowCaps.set(0);
+        formatDownscales.set(0);
+        depthDownscales.set(0);
+        animCaps.set(0);
+        governorActions.set(0);
+        budgetWarnings.set(0);
+        atlasTracked.set(0);
+        atlasCaps.set(0);
     }
 
     // ---- Public getters (for HUD) ----
@@ -285,7 +256,6 @@ public class VerificationLogger {
     public static int getFormatDownscales() { return formatDownscales.get(); }
     public static int getBudgetWarnings() { return budgetWarnings.get(); }
     public static int getShadowCaps() { return shadowCaps.get(); }
-    public static int getCasFrames() { return casFrames.get(); }
 
     private static boolean shouldLog(int n) {
         return n <= FULL_LOG || n % SAMPLE_EVERY == 0;

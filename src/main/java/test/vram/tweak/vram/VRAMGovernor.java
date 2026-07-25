@@ -5,15 +5,17 @@ import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.util.ModCompat;
 
 /**
  * Dynamically adjusts render distance based on VRAM pressure.
  *
- * When VRAM usage exceeds target threshold: reduce effective render distance.
- * When VRAM recovers below (threshold - hysteresis): restore.
- * Cooldown between adjustments prevents flickering.
+ * When VRAM usage exceeds target threshold: reduce effective render distance
+ * by 1 chunk per step. When VRAM recovers below (threshold - hysteresis):
+ * restore to original render distance immediately.
  *
- * Designed to work with MixinOptions_RenderDistance (client sourceSet).
+ * Cooldown between adjustments prevents flickering.
+ * With Iris: slower adjustments (2x cooldown) to avoid shader reload issues.
  */
 public class VRAMGovernor {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/governor");
@@ -25,16 +27,18 @@ public class VRAMGovernor {
     private static int cooldownTicks;
 
     // State
-    private static int currentCap = Integer.MAX_VALUE;
-    private static int originalDistance = -1; // captured once, restored on recovery
+    private static int currentCap = Integer.MAX_VALUE;   // effective cap
+    private static int originalDistance = -1;             // user's setting
     private static int cooldown;
+    private static boolean irisActive;
+    private static boolean underPressure;                 // true when above threshold
 
     /** Called once at init. */
     public static void initialize() {
         reload();
     }
 
-    /** Re-read config. */
+    /** Re-read config. Callable at runtime. */
     public static void reload() {
         var cfg = VRAMConfig.getInstance().governor;
         var vramCfg = VRAMConfig.getInstance().vram;
@@ -43,15 +47,16 @@ public class VRAMGovernor {
         hysteresis = cfg.hysteresis;
         minDistance = cfg.minDistance;
         cooldownTicks = cfg.cooldownTicks;
-
-        // Reset state on reload
+        irisActive = ModCompat.isIrisLoaded();
         currentCap = Integer.MAX_VALUE;
         originalDistance = -1;
         cooldown = 0;
+        underPressure = false;
 
         if (enabled) {
-            LOGGER.info("VRAM governor ON. target={}%, hysteresis={}, minDist={}, cooldown={}t",
-                    targetPercent, hysteresis, minDistance, cooldownTicks);
+            LOGGER.info("VRAM governor ON. target={}%, hysteresis={}%, minDist={}, cooldown={}t{}",
+                    targetPercent, hysteresis, minDistance, cooldownTicks,
+                    irisActive ? " (Iris: slower adjust)" : "");
         } else {
             LOGGER.info("VRAM governor OFF.");
         }
@@ -59,61 +64,45 @@ public class VRAMGovernor {
 
     /** Called each frame from MixinGameRenderer_Metrics. */
     public static void onFrameEnd() {
-        if (!enabled) {
-            // one-shot trace: log first call when disabled
-            if (originalDistance == 0) { /* already logged */ }
-            else if (originalDistance == -1) {
-                originalDistance = 0;
-                LOGGER.debug("[TRACE] Governor.onFrameEnd() skipped — governor disabled");
-            }
-            return;
-        }
+        if (!enabled) return;
+
         if (cooldown > 0) { cooldown--; return; }
 
         long freeKB = VRAMOptimizer.queryFreeVRAM();
-        if (freeKB <= 0) {
-            LOGGER.debug("[TRACE] Governor.onFrameEnd() skipped — VRAM query returned {}", freeKB);
-            return;
-        }
-
-        // Query real total VRAM from GPU driver
+        if (freeKB <= 0) return;
         long totalMB = VRAMOptimizer.queryTotalVRAM();
-        if (totalMB <= 0) {
-            LOGGER.debug("[TRACE] Governor.onFrameEnd() skipped — total VRAM query returned {}", totalMB);
-            return;
-        }
+        if (totalMB <= 0) return;
 
-        long freeMB = freeKB / 1024;
-        long usedMB = totalMB - freeMB;
+        long usedMB = totalMB - (freeKB / 1024);
         long thresholdMB = totalMB * targetPercent / 100;
+        long recoverMB = totalMB * (targetPercent - hysteresis) / 100;
 
-        LOGGER.debug("[TRACE] Governor.onFrameEnd: used={}MB/{}MB threshold={}MB cap={} hyst={}%",
-                usedMB, totalMB, thresholdMB, currentCap, hysteresis);
+        boolean over = usedMB > thresholdMB;
+        boolean recovered = usedMB < recoverMB;
 
-        if (usedMB > thresholdMB && currentCap > minDistance) {
-            // reduce by 1 chunk
-            currentCap = Math.max(minDistance, currentCap - 1);
-            cooldown = cooldownTicks;
-            VerificationLogger.logGovernorAction("reduce", currentCap + 1, currentCap, usedMB, totalMB);
-            LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Reducing render distance -> {}",
-                    usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
-        } else if (usedMB < totalMB * (targetPercent - hysteresis) / 100 && currentCap < Integer.MAX_VALUE) {
-            // recover by 1 chunk
-            currentCap = Math.min(Integer.MAX_VALUE, currentCap + 1);
-            cooldown = cooldownTicks;
-            VerificationLogger.logGovernorAction("restore", currentCap - 1, currentCap, usedMB, totalMB);
-            if (currentCap >= originalDistance || currentCap >= 32) {
-                currentCap = Integer.MAX_VALUE;
-                originalDistance = -1;
-                LOGGER.info("VRAM recovered: {}MB. Render distance restored.", usedMB);
-            } else {
-                LOGGER.info("VRAM recovering: {}MB. Render distance -> {}", usedMB, currentCap);
+        // Iris: use longer cooldown but still adjust
+        int stepCooldown = irisActive ? cooldownTicks * 2 : cooldownTicks;
+
+        if (over) {
+            underPressure = true;
+            if (currentCap > minDistance) {
+                currentCap = Math.max(minDistance, currentCap - 1);
+                cooldown = stepCooldown;
+                VerificationLogger.logGovernorAction(
+                        irisActive ? "iris_reduce" : "reduce",
+                        currentCap + 1, currentCap, usedMB, totalMB);
+                LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Render dist -> {}",
+                        usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
             }
-        } else if (currentCap < Integer.MAX_VALUE && usedMB < thresholdMB && usedMB >= totalMB * (targetPercent - hysteresis) / 100) {
-            LOGGER.debug("[TRACE] Governor.onFrameEnd: in hysteresis band, no action");
-        } else {
-            LOGGER.debug("[TRACE] Governor.onFrameEnd: no action needed (used={}MB threshold={}MB cap={})",
-                    usedMB, thresholdMB, currentCap);
+        } else if (recovered && underPressure) {
+            // Restore in one shot when pressure is gone
+            underPressure = false;
+            int prevCap = currentCap;
+            currentCap = Integer.MAX_VALUE;
+            originalDistance = -1;
+            cooldown = stepCooldown;
+            VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
+            LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
         }
     }
 
@@ -123,28 +112,16 @@ public class VRAMGovernor {
      * @return capped value, or original if governor disabled / not active
      */
     public static int capRenderDistance(int original) {
-        if (!enabled) {
-            if (original > 0 && original <= 32 && LOGGER.isDebugEnabled()) {
-                // one-shot debug: log first call when disabled (so user knows governor is OFF)
-                if (originalDistance == -1) originalDistance = 0; // sentinel: "already logged disabled"
-                LOGGER.debug("[TRACE] capRenderDistance({}) → {} (governor disabled)", original, original);
-            }
-            return original;
-        }
-        if (currentCap == Integer.MAX_VALUE) {
-            LOGGER.debug("[TRACE] capRenderDistance({}) → {} (no cap yet, warming up)", original, original);
-            return original;
-        }
-        if (originalDistance < 0) {
-            originalDistance = original;
-            LOGGER.info("[TRACE] capRenderDistance: captured original={}, cap={}", original, currentCap);
-        }
-        int capped = Math.min(original, currentCap);
-        if (capped != original) {
-            LOGGER.info("[TRACE] capRenderDistance: {} → {} (cap={})", original, capped, currentCap);
-        }
-        return capped;
+        if (!enabled || currentCap == Integer.MAX_VALUE) return original;
+        if (originalDistance < 0) originalDistance = original;
+        return Math.min(original, currentCap);
     }
+
+    /** Current effective render distance cap (or MAX_VALUE if no cap). */
+    public static int getCurrentCap() { return currentCap; }
+
+    /** Whether the governor is actively capping render distance. */
+    public static boolean isCapping() { return enabled && currentCap < Integer.MAX_VALUE; }
 
     public static boolean isEnabled() { return enabled; }
 }

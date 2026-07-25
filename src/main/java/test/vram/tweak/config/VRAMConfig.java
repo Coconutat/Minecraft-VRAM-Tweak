@@ -38,11 +38,11 @@ public class VRAMConfig {
     @SerializedName("governor")
     public GovernorSection governor = new GovernorSection();
 
-    @SerializedName("particle")
-    public ParticleSection particle = new ParticleSection();
+    @SerializedName("showExperimental")
+    public boolean showExperimental = false;
 
-    @SerializedName("cas")
-    public CASSection cas = new CASSection();
+    @SerializedName("experimental")
+    public ExperimentalSection experimental = new ExperimentalSection();
 
     // ---- singleton ----
 
@@ -70,50 +70,30 @@ public class VRAMConfig {
             save();
         }
         initialVramEnabled = instance.vram.enabled;
-        LOGGER.info("[Config] Loaded: vram.enabled={} (initial={})", instance.vram.enabled, initialVramEnabled);
     }
 
     public static void save() {
-        if (configPath == null) {
-            LOGGER.warn("[Config] save() called but configPath is null — config not yet loaded");
-            return;
-        }
+        if (configPath == null) return;
         try {
             Files.createDirectories(configPath.getParent());
             Files.writeString(configPath, GSON.toJson(getInstance()),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            LOGGER.info("[Config] Saved to {} (vram.enabled={})", configPath, instance.vram.enabled);
         } catch (IOException e) {
             LOGGER.error("Failed to save config", e);
         }
     }
 
+    /**
+     * True when the in-memory "enabled" toggle differs from what was read at
+     * launch time. The config screen uses this to decide whether to show the
+     * red "restart required" banner under its title.
+     */
     public static boolean isVramRestartRequired() {
-        if (instance == null) {
-            LOGGER.warn("[Config] isVramRestartRequired() called but instance is null");
-            return false;
-        }
-        boolean changed = instance.vram.enabled != initialVramEnabled;
-        if (changed) {
-            LOGGER.info("[Config] Restart required: initial={} current={}", initialVramEnabled, instance.vram.enabled);
-        }
-        return changed;
+        if (instance == null) return false;
+        return instance.vram.enabled != initialVramEnabled;
     }
 
-    /** Returns the initial vram.enabled value from game startup. */
-    public static boolean getInitialVramEnabled() {
-        return initialVramEnabled;
-    }
-
-    /** Restores vram.enabled to its initial startup value (used when user cancels a restart-required change). */
-    public static void restoreVramEnabled() {
-        if (instance != null) {
-            LOGGER.info("[Config] Restoring vram.enabled: {} → {} (initial)", instance.vram.enabled, initialVramEnabled);
-            instance.vram.enabled = initialVramEnabled;
-        } else {
-            LOGGER.warn("[Config] restoreVramEnabled() called but instance is null");
-        }
-    }
+    public static boolean getInitialVramEnabled() { return initialVramEnabled; }
 
     // ---- VRAM section ----
 
@@ -122,7 +102,7 @@ public class VRAMConfig {
         public boolean enabled = false;
 
         @SerializedName("shadowCapEnabled")
-        public boolean shadowCapEnabled = false;
+        public boolean shadowCapEnabled = true;
 
         @SerializedName("shadowMapMaxSize")
         public int shadowMapMaxSize = 1024;
@@ -154,12 +134,6 @@ public class VRAMConfig {
 
         @SerializedName("maxAtlasSize")
         public int maxAtlasSize = 4096;
-
-        @SerializedName("spriteDownsample")
-        public boolean spriteDownsample = false;
-
-        @SerializedName("maxSpriteSize")
-        public int maxSpriteSize = 64;
     }
 
     // ---- Diagnostic section ----
@@ -174,14 +148,16 @@ public class VRAMConfig {
         @SerializedName("verificationLog")
         public boolean verificationLog = false;
 
-        @SerializedName("logIntervalSeconds")
-        public int logIntervalSeconds = 5;
-
-        @SerializedName("ringBufferSize")
-        public int ringBufferSize = 60;
-
         @SerializedName("logDirectory")
         public String logDirectory = "logs/vram-tweak";
+
+        // ---- AllocTracker sub-section ----
+
+        @SerializedName("allocTracker")
+        public boolean allocTracker = false;
+
+        @SerializedName("allocSnapshotInterval")
+        public int allocSnapshotInterval = 30;
     }
 
     // ---- HUD section ----
@@ -189,9 +165,6 @@ public class VRAMConfig {
     public static class HUDSection {
         @SerializedName("enabled")
         public boolean enabled = true;
-
-        @SerializedName("anchor")
-        public String anchor = "TOP_LEFT";
 
         @SerializedName("offsetX")
         public int offsetX = 4;
@@ -232,11 +205,14 @@ public class VRAMConfig {
         @SerializedName("showGpu")
         public boolean showGpu = true;
 
-        @SerializedName("showDrawCalls")
-        public boolean showDrawCalls = false;
+        @SerializedName("showGpuClocks")
+        public boolean showGpuClocks = true;
 
-        @SerializedName("bgAlpha")
-        public float bgAlpha = 0.35f;
+        @SerializedName("showGovernor")
+        public boolean showGovernor = true;
+
+        @SerializedName("showAllocBreakdown")
+        public boolean showAllocBreakdown = false;
     }
 
     // ---- Governor section ----
@@ -255,23 +231,14 @@ public class VRAMConfig {
         public int cooldownTicks = 100;
     }
 
-    // ---- Particle section ----
+    // ---- Experimental section (AMD-specific features) ----
 
-    public static class ParticleSection {
-        @SerializedName("enabled")
-        public boolean enabled = false;
+    public static class ExperimentalSection {
+        @SerializedName("pinnedMemory")
+        public boolean pinnedMemory = false;
 
-        @SerializedName("maxParticles")
-        public int maxParticles = 2000;
+        @SerializedName("pinnedMemoryMinSize")
+        public int pinnedMemoryMinSize = 1024; // minimum texture size (px) to use pinned PBO
     }
 
-    // ---- CAS section ----
-
-    public static class CASSection {
-        @SerializedName("enabled")
-        public boolean enabled = false;
-
-        @SerializedName("sharpness")
-        public float sharpness = 0.2f;  // 0.0-1.0, AMD default ~0.2
-    }
 }

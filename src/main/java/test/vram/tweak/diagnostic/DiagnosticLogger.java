@@ -18,6 +18,9 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.loader.api.FabricLoader;
 
 import test.vram.tweak.config.VRAMConfig;
+import test.vram.tweak.gpu.AmdVramLookup;
+import test.vram.tweak.gpu.GPUDetector;
+import test.vram.tweak.gpu.GPUType;
 import test.vram.tweak.gpu.GPUDetector;
 
 /**
@@ -55,28 +58,60 @@ public class DiagnosticLogger {
         sb.append("=== vram-tweak Diagnostic ===\n");
         sb.append("Time: ").append(LocalDateTime.now().format(FMT)).append("\n\n");
 
-        // GPU info
-        sb.append("  GPU: ").append(GPUDetector.getGPU()).append("\n");
+        // System
+        sb.append("[System]\n");
+        sb.append("  OS: ").append(System.getProperty("os.name"))
+          .append(" ").append(System.getProperty("os.version")).append("\n");
+        sb.append("  Java: ").append(System.getProperty("java.version"))
+          .append(" (").append(System.getProperty("java.vendor")).append(")\n");
+        sb.append("  Max heap: ").append(Runtime.getRuntime().maxMemory() / 1024 / 1024).append(" MB\n\n");
+
+        // GPU
+        sb.append("[GPU]\n");
+        sb.append("  Detected: ").append(GPUDetector.getGPU()).append("\n");
         sb.append("  Vendor: ").append(GPUDetector.getVendor()).append("\n");
         sb.append("  Renderer: ").append(GPUDetector.getRenderer()).append("\n");
+        sb.append("  GL Version: ").append(GL11.glGetString(GL11.GL_VERSION)).append("\n");
+        sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
 
-        // System (GPU-aware)
+        // AMD architecture
+        if (GPUDetector.getGPU() == GPUType.AMD) {
+            sb.append("  AMD Arch: ").append(GPUDetector.getAmdArchDisplay()).append("\n");
+            sb.append("  AMD Model: ").append(GPUDetector.getAmdModel()).append("\n");
+        }
+
+        // VRAM query (GPU-aware)
         try {
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
                     int[] vals = new int[4];
                     GL11.glGetIntegerv(0x87FB, vals);
-                    sb.append("  VRAM free (ATI_meminfo): ").append(vals[0] & 0xFFFFFFFFL).append(" KB\n");
+                    long freeKB = vals[0] & 0xFFFFFFFFL;
+                    sb.append("  VRAM free (ATI_meminfo): ").append(freeKB).append(" KB\n");
+                    // Try NVX total if available
+                    if (hasExtension("GL_NVX_gpu_memory_info")) {
+                        int[] totalVal = new int[1];
+                        GL11.glGetIntegerv(0x9047, totalVal);
+                        sb.append("  VRAM total (NVX): ").append((totalVal[0] & 0xFFFFFFFFL) / 1024).append(" MB\n");
+                    }
+                    // Model-based total
+                    long knownVram = AmdVramLookup.lookup(
+                            GPUDetector.getGPUInfo() != null ? GPUDetector.getGPUInfo().getAmdArch() : null,
+                            GPUDetector.getAmdModel());
+                    if (knownVram > 0) {
+                        sb.append("  VRAM known (model lookup): ").append(knownVram).append(" MB\n");
+                    }
                 }
                 case NVIDIA -> {
                     int[] freeVal = new int[1], totalVal = new int[1];
-                    GL11.glGetIntegerv(0x9049, freeVal);  // CURRENT_AVAILABLE_VIDMEM_NVX
-                    GL11.glGetIntegerv(0x9047, totalVal); // DEDICATED_VIDMEM_NVX
-                    sb.append("  VRAM free (NVX_meminfo): ").append(freeVal[0] & 0xFFFFFFFFL).append(" KB\n");
-                    sb.append("  VRAM total (NVX_meminfo): ").append(totalVal[0] & 0xFFFFFFFFL).append(" KB\n");
+                    GL11.glGetIntegerv(0x9049, freeVal);
+                    GL11.glGetIntegerv(0x9047, totalVal);
+                    sb.append("  VRAM free (NVX): ").append(freeVal[0] & 0xFFFFFFFFL).append(" KB\n");
+                    sb.append("  VRAM total (NVX): ").append(totalVal[0] & 0xFFFFFFFFL).append(" KB\n");
                 }
                 case INTEL -> {
                     boolean queried = false;
+                    // NVX first (modern Intel Arc DG2+)
                     if (hasExtension("GL_NVX_gpu_memory_info")) {
                         int[] freeVal = new int[1], totalVal = new int[1];
                         GL11.glGetIntegerv(0x9049, freeVal);
@@ -84,11 +119,12 @@ public class DiagnosticLogger {
                         long freeKB = freeVal[0] & 0xFFFFFFFFL;
                         long totalKB = totalVal[0] & 0xFFFFFFFFL;
                         if (freeKB > 0 && totalKB > 0) {
-                            sb.append("  VRAM free (NVX_meminfo): ").append(freeKB).append(" KB\n");
-                            sb.append("  VRAM total (NVX_meminfo): ").append(totalKB).append(" KB\n");
+                            sb.append("  VRAM free (NVX): ").append(freeKB).append(" KB\n");
+                            sb.append("  VRAM total (NVX): ").append(totalKB).append(" KB\n");
                             queried = true;
                         }
                     }
+                    // Fallback ATI (some older iGPUs)
                     if (!queried && hasExtension("GL_ATI_meminfo")) {
                         int[] vals = new int[4];
                         GL11.glGetIntegerv(0x87FB, vals);
@@ -103,14 +139,12 @@ public class DiagnosticLogger {
                     }
                 }
                 default -> {
-                    sb.append("  VRAM query: unavailable (GPU type not supported)\n");
+                    sb.append("  VRAM query: GPU type not supported\n");
                 }
             }
         } catch (Exception e) {
             sb.append("  VRAM query: unavailable\n");
         }
-
-        sb.append("  GLSL: ").append(GL11.glGetString(GL30.GL_SHADING_LANGUAGE_VERSION)).append("\n");
 
         // GL extensions (use glGetStringi for core profile compatibility)
         sb.append("  GL Extensions: ");
@@ -132,20 +166,45 @@ public class DiagnosticLogger {
 
         // Mods
         sb.append("[Mods]\n");
+        boolean hasSodium = false;
+        boolean hasIris = false;
         for (var mod : FabricLoader.getInstance().getAllMods()) {
-            sb.append("  ").append(mod.getMetadata().getId())
+            String id = mod.getMetadata().getId();
+            sb.append("  ").append(id)
               .append(" v").append(mod.getMetadata().getVersion().getFriendlyString()).append("\n");
+            if ("sodium".equals(id)) hasSodium = true;
+            if ("iris".equals(id)) hasIris = true;
         }
+        sb.append("\n");
+
+        // Renderer detection
+        sb.append("[Renderer]\n");
+        sb.append("  Sodium: ").append(hasSodium ? "detected" : "not present").append("\n");
+        sb.append("  Iris: ").append(hasIris ? "detected" : "not present").append("\n");
+        sb.append("  Texture upload: ");
+        if (hasSodium) {
+            sb.append("Sodium uses vanilla GlCommandEncoder.writeToTexture()\n");
+        } else {
+            sb.append("Vanilla GlStateManager path\n");
+        }
+        sb.append("  PinnedMemory: PBO pool (").append(VRAMConfig.getInstance().experimental.pinnedMemoryMinSize).append("px threshold)\n");
+        sb.append("  PBO pool sizes: 512KB, 2MB, 8MB, 32MB (persistent coherent mapping)\n");
+        sb.append("  Hooks: _texImage2D(ByteBuffer) + _texSubImage2D(ByteBuffer) (long path uses native pointer directly)\n");
         sb.append("\n");
 
         // Config
         sb.append("[Config]\n");
-        var vram = VRAMConfig.getInstance().vram;
+        var c = VRAMConfig.getInstance();
+        var vram = c.vram;
         sb.append("  VRAM enabled: ").append(vram.enabled).append("\n");
         sb.append("  Shadow cap: ").append(vram.shadowMapMaxSize).append("\n");
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
+        sb.append("  Show Experimental: ").append(c.showExperimental).append("\n");
+        sb.append("  Experimental:\n");
+        sb.append("    Pinned Memory: ").append(c.experimental.pinnedMemory).append("\n");
+        sb.append("    Pinned Memory min size: ").append(c.experimental.pinnedMemoryMinSize).append(" px\n");
 
         // Write
         try {
