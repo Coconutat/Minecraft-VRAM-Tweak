@@ -3,9 +3,15 @@
 	"id": "vram-tweak",
 	"version": "${version}",
 	"name": "VRAM Tweak",
-	"description": "VRAM optimization for low VRAM GPUs — shadow map cap, format downscale, budget tracking. Compatible with Iris & Sodium. Without Deepseek, this mod would not exist.",
+	"description": "VRAM optimization for low VRAM GPUs — shadow map cap, depth downscale, atlas cap, AllocTracker. Compatible with Iris & Sodium.",
 	"authors": ["Coconutat", "Deepseek V4"],
+	"contact": {
+		"homepage": "https://github.com/Coconutat/Minecraft-VRAM-Tweak",
+		"sources": "https://github.com/Coconutat/Minecraft-VRAM-Tweak",
+		"issues": "https://github.com/Coconutat/Minecraft-VRAM-Tweak/issues"
+	},
 	"license": "CC0-1.0",
+	"icon": "assets/vram-tweak/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": ["test.vram.tweak.client.VRAMTweakClient"],
