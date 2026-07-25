@@ -1,249 +1,194 @@
 # VRAM Tweak
 
-[**中文**](README_CN.md) | **English**
+**English** | [中文](README_CN.md)
 
-> Minecraft 26.2 Fabric VRAM optimization mod — Reduce GPU memory without touching shaders or resource packs.
+> Minecraft 26.2 Fabric VRAM optimization mod — diagnose and reduce GPU VRAM usage.
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
 
 ---
-  
+
 <p align="center">
   <img src="Cover.jpg" alt="VRAM Optimizer Cover" height="512" width="512"/>
 </p>
 
 ***
-## Developer's Note
 
-I originally wanted to make an optimization mod for my low-end AMD GPU because I noticed unstable frame rates. I couldn't do much about it, but with the help of AI I was able to bring my ideas to life.
+## Overview
 
-However, as development progressed, I discovered that VRAM was actually the bottleneck. So I changed direction and created this mod optimized for low VRAM environments.
+VRAM Tweak intercepts GPU texture creation at the OpenGL level via Mixin injection. It caps oversized texture atlases, downscales depth buffers, limits animation frames, and dynamically adjusts render distance — **without modifying Sodium, Iris, or any third-party mod**. Also includes a built-in VRAM forensics tool (AllocTracker) that intercepts every GPU allocation and classifies it by category and source.
 
-This mod is theoretically universal across GPU vendors.  
+### Active Features
 
-For users with GPUs that have 4GB or 6GB of video memory, this can reduce stuttering caused by insufficient video memory.  
-  
-**The mod is under active development. If you don't see any files on the download page, it means it's still under review or undergoing bug fixes. The mod is currently in beta.**  
+| Feature | How | Status |
+|---------|-----|--------|
+| **Atlas size cap** | Clamp texture atlas W/H ≤ `maxAtlasSize` | ✅ Stable |
+| **Depth downscale** | D32_FLOAT → D16_UNORM | ✅ Verified |
+| **Shadow map cap** | Limit shadow map resolution | ✅ Stable |
+| **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
+| **VRAM Governor** | Auto-lower render distance under VRAM pressure | ✅ Stable |
+| **Budget tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
+| **AllocTracker** | Intercept every GPU alloc/free, categorize by type & source | ✅ Stable |
 
-**After updating to the latest AMD GPU driver(26.6.4), VRAM usage became more normal.**    
+### Conditional Features
 
-**Therefore, this mod will have to wait until the Vulkan API is released to see what else it can do.**  
-***
+| Feature | Trigger |
+|---------|---------|
+| Format downscale (RGBA16F→RGBA8) | Requires high-precision resource packs or shader packs |
 
-## What It Does
+> **Note:** Toggling the mod OFF in GUI only affects **newly created** textures. Restart the game to reload at full resolution.
 
-VRAM Tweak intercepts GPU texture creation at the Blaze3D engine level via Mixin injection. It caps oversized texture atlases, downscales depth buffers, limits animation frames, and dynamically adjusts render distance when VRAM runs low — **all without modifying Sodium, Iris, or any third-party mod code**.
+---
 
-| Feature | How It Works | Triggered In Testing |
-|---------|-------------|---------------------|
-| **Atlas Size Cap** | `GpuDevice.createTexture()` W/H clamped to `maxAtlasSize` | ✅ 26 caps/session (blocks.png 16384→4096) |
-| **Depth Downscale** | D32_FLOAT → D16_UNORM shadow maps | ✅ 10×/session, ~50% VRAM per shadow map |
-| **Format Downscale** | RGBA16F → RGBA8 color buffers | ⚠️ Requires high-precision pack/shader |
-| **Shadow Map Cap** | Clamp shadow map resolution ≤ `shadowMapMaxSize` | ⚠️ Vanilla ≤1024, within limit |
-| **Animation Limit** | Cap animated texture frame count | ✅ Stable |
-| **Particle Limit** | Global particle count safety net | ✅ Experimental |
-| **VRAM Governor** | Auto-lower render distance under VRAM pressure | ✅ Experimental |
-| **Budget Tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
+## AllocTracker — VRAM Forensics
 
-> ⚠️ **Important**: Toggling the mod ON/OFF via GUI takes effect immediately for *new* textures only. Textures already loaded into VRAM stay at their current size until you **restart the game**. If you disable the mod and VRAM usage doesn't increase, this is expected — restart to reload textures at full resolution.
+Intercepts every `glTexImage2D` / `glDeleteTextures` call and classifies each allocation by category and source. Periodically writes aggregated snapshots to `logs/vram-tweak/mod.log`.
+
+**Example output:**
+```
+[AllocTracker] ===== Snapshot t=0s =====
+  GL Used: 4971/8192 MB (60%)
+  ── By Category ──
+    TEXTURE_ATLAS                  2772 MB  (61%)
+    RENDER_TARGET_COLOR            1571 MB  (35%)
+  ── By Source ──
+    ATLAS_BLOCKS                   1536 MB  (34%)
+    ATLAS_ITEMS                     768 MB  (17%)
+```
+
+Enable via Config → Diagnostics → VRAM AllocTracker, or `/vramtweak allocreport`.
 
 ---
 
 ## HUD Overlay
 
-Real-time performance overlay with **independent toggles** for each metric:
-
-| Toggle | What It Shows |
-|--------|--------------|
-| FPS (Smooth) | 0.5s rolling-window frame rate |
-| FPS (Average) | 5s sliding-window mean |
-| 1% Low FPS | Slowest 1% of frames — perceived smoothness |
-| 0.1% Low FPS | Worst 0.1% — stutter detection |
-| Frame Time | Average milliseconds per frame |
-| VRAM | Used / Total + percentage (color-coded) |
-| Atlas Stats | Texture atlases tracked vs. size-capped |
-| Allocations | GPU texture alloc/free counters |
-| Downscales | Depth & format downscale trigger counts |
-| Budget | Warning status + peak VRAM % |
-
-Configure via Cloth Config GUI or `config/vram-tweak.json`.
+Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%), frame time, VRAM, atlas stats, alloc/free counts, governor status, alloc breakdown.
 
 ---
 
 ## Commands
 
 ```
-/vramtweak stats      — Print current VRAM + FPS stats to chat
-/vramtweak dump       — Write a full diagnostic report to disk
-/vramtweak hud        — Toggle HUD overlay on/off
-/vramtweak benchmark  — Quick VRAM stress test
+/vramtweak stats       — VRAM + FPS stats
+/vramtweak dump        — Ring-buffer CSV to disk
+/vramtweak hud         — Toggle HUD
+/vramtweak benchmark   — VRAM stress test (ON vs OFF)
+/vramtweak allocreport — Allocation breakdown by category + top-10 largest
 ```
 
 ---
 
-## Real-World Impact
+## Performance
 
-**Hardware:** AMD R5 5600 + 32GB DDR4 + RX 6650 XT 8GB  
-**Software:** MC 26.2 + Sodium + Iris + resource pack + shaders
-**For a comparison, please refer to this: [Comparison Document](https://github.com/Coconutat/Minecraft-VRAM-Tweak/blob/imgs/README.md)**
+**HW:** AMD R5 5600 + 32GB + RX 6650 XT 8GB  
+**SW:** MC 26.2 + Sodium 0.9.0 + Iris 1.11 + ScalableLux + 80+ mods
 
-### Before vs After
+### VRAM Breakdown (AllocTracker, maxAtlasSize=2048)
 
-| Metric | Before | After | Savings |
-|--------|--------|-------|---------|
-| VRAM Peak | 7820 / 8192 MB (95.4%) | **4728 / 8192 MB (57.7%)** | ~3 GB |
-| Stability | Stuttering near VRAM limit | 0 budget warnings | Smooth & playable |
+| Source | Size | % |
+|--------|------|---|
+| Texture Atlases (blocks, items, misc) | ~2772 MB | 55% |
+| Iris Render Targets (G-buffer) | ~1571 MB | 32% |
+| Other (entities, GUI, font) | ~180 MB | 4% |
+| Untracked (driver, SSBO) | ~448 MB | 9% |
+| **Total** | **~4971 MB** | 60% of 8GB |
 
-### Atlas Caps
-
-**26 oversize caps** in one session:
-
-| Atlas | Original | Capped | Savings |
-|-------|---------|--------|---------|
-| `blocks.png` | 16384×8192 | **4096×4096** | ~240 MB |
-| `armor_trims.png` | 16384×8192 | **4096×4096** | ~240 MB |
-| `items.png` | 8192×4096 | **4096×4096** | ~64 MB |
-
-> **Total:** Atlas caps + depth downscales → ~**2.5 GB VRAM** saved. Usage dropped from 95.4% to 57.7%.
-
-### Test Pack & Shaders
-- Resource Pack: [EXTREAL](https://www.bilibili.com/video/BV1CBoFB1Es1/) (paid, trial available)
-- Shaders: [Spring v2](https://modrinth.com/shader/spring-shaders) (public)
+> The atlas cap reduces individual atlases from 16384px to the configured limit. Iris G-buffers are the second-largest consumer and are not currently intercepted.
 
 ---
 
 ## Requirements
 
-| Dependency | Type | Version |
-|-----------|------|---------|
-| **Sodium** | Suggested | 0.9.0+ |
-| Iris | Soft | 1.11+ *(shader compatibility)* |
-| Cloth Config | Soft | 26.2+ *(GUI)* |
-| ModMenu | Soft | 20.0+ *(config button)* |
+| Dependency | Type |
+|-----------|------|
+| **Sodium** | Suggested |
+| Iris | Soft (shader compat) |
+| Cloth Config | Soft (GUI) |
+| ModMenu | Soft (config button) |
 
 **Platform:** Windows, Linux  
-**Java:** 25+
-
-> **Compatibility:** Tested with Iris + C2ME + Lithium + resource packs + shaders.
-
----
-
-## GPU Support
-
-| GPU Vendor | Auto-Detect | VRAM Tracking |
-|-----------|------------|---------------|
-| AMD | ✅ `GL_VENDOR` | ✅ `GL_ATI_meminfo` (KB-precise) |
-| NVIDIA | ✅ `GL_VENDOR` | ✅ `GL_NVX_gpu_memory_info` (KB-precise) |
-| Intel | ✅ `GL_VENDOR` | ❌ No dedicated VRAM (iGPU uses system RAM). Safe — automatically skipped. |
+**Java:** 25+  
+**GPU:** AMD (auto-detect), NVIDIA (manual enable), Intel (safe skip)
 
 ---
 
 ## Quick Start
 
 1. Install [Fabric](https://fabricmc.net/use/) for Minecraft 26.2
-2. Install [Sodium](https://modrinth.com/mod/sodium) ```For 26.2 , If you install Iris, Sodium must be version 0.9.0, because Iris is not compatible with versions higher than 0.9.0.  For 1.21.11 , Sodium must be version 0.8.13-beta-1, because Iris is not compatible with versions higher than 0.8.13-beta-1.If you don't use Iris, there may be no restrictions.```
+2. Install [Sodium](https://modrinth.com/mod/sodium) 0.9.0
 3. Install [Cloth Config API](https://modrinth.com/mod/cloth-config)
-4. Install [Iris](https://modrinth.com/mod/iris) `this is optional`
-5. Drop `vram-tweak-x.x.x.jar` into `mods/`
-6. Launch — Open Mod Menu → VRAM Tweak → Enable features
+4. Drop `vram-tweak-*.jar` into `mods/`
+5. Launch → Mod Menu → VRAM Tweak → Enable
 
 ---
 
-## Configuration
-
-All settings live in `config/vram-tweak.json`. Use Cloth Config GUI (Mod Menu → VRAM Tweak) for interactive setup.
+## Config
 
 ```jsonc
 {
+  "version": 1,
+  "showExperimental": false,
   "vram": {
-    "enabled": true,           // Master VRAM switch
-    "shadowMapMaxSize": 1024,  // Shadow map resolution cap
-    "formatDownscale": false,  // RGBA16F→RGBA8
-    "depthDownscale": false,   // D32→D16
-    "budgetTracking": false,   // VRAM usage monitor
-    "budgetWarningPercent": 80 // Warn above this %
+    "enabled": true,
+    "shadowCapEnabled": true, "shadowMapMaxSize": 1024,
+    "formatDownscale": false, "depthDownscale": false,
+    "budgetTracking": false, "budgetWarningPercent": 80
   },
   "texture": {
-    "animationLimit": false,
-    "maxAnimationFrames": 32,
-    "atlasSizeLimit": false,   // Cap texture atlas size
-    "maxAtlasSize": 4096
+    "animationLimit": false, "maxAnimationFrames": 32,
+    "atlasSizeLimit": false, "maxAtlasSize": 4096
   },
-  "governor": {
-    "enabled": false,          // Dynamic render distance
-    "hysteresis": 10,
-    "minDistance": 4,
-    "cooldownTicks": 100
+  "diagnostic": {
+    "enabled": true, "verificationLog": false,
+    "allocTracker": false, "allocSnapshotInterval": 30,
+    "logDirectory": "logs/vram-tweak"
   },
-  "particle": {
-    "enabled": false,
-    "maxParticles": 2000
-  },
-  "hud": {
-    "enabled": true,
-    "showFps": true,
-    "showFpsAvg": true,
-    "showFps1Percent": false,
-    "showFps01Percent": false,
-    "showFrameTime": true,
-    "showVram": true
-    // ... more toggles
-  },
-  "cas": {                          // 🆕 FSR CAS sharpening
-    "enabled": false,
-    "sharpness": 0.8
-  }
+  "hud": { "enabled": true, "offsetX": 4, "offsetY": 4 },
+  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 },
+  "experimental": { "pinnedMemory": false, "pinnedMemoryMinSize": 1024 }
 }
 ```
 
 ---
 
-## Building
+## Build
 
 ```bash
-git clone <repo-url>
-cd Minecraft-AMD-GPU-Tweak
 ./gradlew build
-# Output: build/libs/vram-tweak-x.x.x.jar
+# Output: build/libs/vram-tweak-*.jar
 ```
 
-Requires JDK 25+ and Gradle 9.6+.
+Requires JDK 25+.
 
 ---
 
 ## Architecture
 
 ```
-Mixin Injection Layer
-├── MixinGpuDevice_VRAMOptimize    → createTexture() format/size cap
-├── MixinGameRenderer_Metrics      → Per-frame stats + VRAM polling
-├── MixinGameRenderer_CAS          → FSR CAS sharpening pass
-├── MixinSpriteContents_Animation  → Animation frame capping
-├── MixinParticleEngine_Cap        → Global particle limit
-├── MixinOptions_RenderDistance    → VRAM Governor hook
-├── MixinGui_Hud                   → HUD overlay rendering
-└── MixinMinecraft_Hud             → HUD data collection
+Mixin Layer
+├── MixinGpuDevice_VRAMOptimize      → createTexture() format/size cap
+├── MixinGameRenderer_Metrics        → per-frame stats + alloc snapshots
+├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures
+├── MixinGlFramebuffer_AllocTracker  → framebuffer attachment tracking
+├── MixinSpriteContents_Animation    → animation frame truncation
+├── MixinOptions_RenderDistance      → governor hook
+├── MixinGui_Hud / MixinMinecraft_Hud → HUD overlay
+├── MixinGlStateManager_PinnedMemory → AMD pinned memory (experimental)
+└── MixinGameRenderer_PerfMonitor    → AMD GPU clocks
 
-Core Modules (src/main)
-├── VRAMOptimizer          → Format/size policy engine
-├── VRAMGovernor           → Dynamic render distance controller
-├── MetricsEngine          → Ring-buffer performance sampling
-├── VramFrameCounter       → Sliding-window FPS + percentile lows
-├── VerificationLogger     → Before/after audit trail
-├── GPUDetector            → Vendor detection + VRAM query
-└── VRAMConfig             → Gson-based config with 7 sections
+Core (src/main)
+├── allocation/              → AllocTracker: categories, tracking, logging
+├── VRAMOptimizer / VRAMGovernor / MetricsEngine / VramFrameCounter
+├── VerificationLogger / VramModLog / GPUDetector / VRAMConfig
 
-Client Modules (src/client)
-├── CasShader              → GLSL CAS fullscreen post-process pass
-├── VramTweakHud           → Singleton overlay renderer
-├── VramTweakCommand       → /vramtweak CLI
-├── ClothConfigFactory     → GUI integration
-└── ModMenuIntegration     → Mod Menu entry point
+Client (src/client)
+├── VramTweakHud / VramTweakCommand / ClothConfigFactory / ModMenuIntegration
+└── AMDPerfMonitor / PinnedMemory + PBO pool
 ```
 
 ---
 
 ## License
 
-Creative Commons Legal Code — See [LICENSE](LICENSE).
+CC0 1.0 Universal. See [LICENSE](LICENSE).
