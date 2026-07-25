@@ -11,9 +11,10 @@ import test.vram.tweak.util.ModCompat;
  * Dynamically adjusts render distance based on VRAM pressure.
  *
  * When VRAM usage exceeds target threshold: reduce effective render distance
- * by 1 chunk per step. When VRAM recovers below (threshold - hysteresis):
- * restore to original render distance immediately.
+ * by 1 chunk per step, starting from the user's actual setting.
+ * When VRAM recovers below (threshold - hysteresis): restore immediately.
  *
+ * Operating range: 4-32 chunks.
  * Cooldown between adjustments prevents flickering.
  * With Iris: slower adjustments (2x cooldown) to avoid shader reload issues.
  */
@@ -27,11 +28,11 @@ public class VRAMGovernor {
     private static int cooldownTicks;
 
     // State
-    private static int currentCap = 32;           // effective cap (start at max render distance)
-    private static int originalDistance = -1;             // user's setting
+    private static int currentCap = -1;           // -1 = no cap, ≥4 = active cap
+    private static int userRenderDistance = -1;   // user's actual setting (captured by mixin)
     private static int cooldown;
     private static boolean irisActive;
-    private static boolean underPressure;                 // true when above threshold
+    private static boolean underPressure;
 
     /** Called once at init. */
     public static void initialize() {
@@ -48,8 +49,8 @@ public class VRAMGovernor {
         minDistance = cfg.minDistance;
         cooldownTicks = cfg.cooldownTicks;
         irisActive = ModCompat.isIrisLoaded();
-        currentCap = 32;
-        originalDistance = -1;
+        currentCap = -1;
+        userRenderDistance = -1;
         cooldown = 0;
         underPressure = false;
 
@@ -80,26 +81,29 @@ public class VRAMGovernor {
         boolean over = usedMB > thresholdMB;
         boolean recovered = usedMB < recoverMB;
 
-        // Iris: use longer cooldown but still adjust
         int stepCooldown = irisActive ? cooldownTicks * 2 : cooldownTicks;
 
         if (over) {
             underPressure = true;
+            // First pressure: start capping from user's actual render distance
+            if (currentCap < 0 && userRenderDistance > 0) {
+                currentCap = userRenderDistance;
+            }
             if (currentCap > minDistance) {
                 currentCap = Math.max(minDistance, currentCap - 1);
                 cooldown = stepCooldown;
                 VerificationLogger.logGovernorAction(
                         irisActive ? "iris_reduce" : "reduce",
                         currentCap + 1, currentCap, usedMB, totalMB);
-                LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Render dist -> {}",
+                LOGGER.warn("VRAM pressure: {}MB/{}MB ({}%). Render dist cap -> {}",
                         usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
             }
         } else if (recovered && underPressure) {
             // Restore in one shot when pressure is gone
             underPressure = false;
             int prevCap = currentCap;
-            currentCap = 32;
-            originalDistance = -1;
+            currentCap = -1;
+            userRenderDistance = -1;
             cooldown = stepCooldown;
             VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
             LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
@@ -107,21 +111,22 @@ public class VRAMGovernor {
     }
 
     /**
-     * Called by mixin. Captures original distance on first call, then applies cap.
+     * Called by mixin. Captures user's render distance, then applies cap.
      * @param original the user's actual render distance setting
-     * @return capped value, or original if governor disabled / not active
+     * @return capped value, or original if governor disabled / no active cap
      */
     public static int capRenderDistance(int original) {
-        if (!enabled || currentCap >= 32) return original;
-        if (originalDistance < 0) originalDistance = original;
+        if (!enabled) return original;
+        userRenderDistance = original; // always track user's setting
+        if (currentCap < 0) return original; // no active cap
         return Math.min(original, currentCap);
     }
 
-    /** Current effective render distance cap (or 32 if no cap). */
+    /** Current cap (-1 means no cap). */
     public static int getCurrentCap() { return currentCap; }
 
-    /** Whether the governor is actively capping render distance. */
-    public static boolean isCapping() { return enabled && currentCap < 32; }
+    /** Whether the governor is actively capping. */
+    public static boolean isCapping() { return enabled && currentCap >= 0; }
 
     public static boolean isEnabled() { return enabled; }
 }
