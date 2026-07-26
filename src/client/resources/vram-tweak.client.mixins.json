@@ -16,6 +16,10 @@
 		"MixinGameRenderer_PerfMonitor",
 		"MixinGlStateManager_PinnedMemory",
 		"MixinGlStateManager_AllocTracker",
+		"MixinGlStateManager_BufferTracker",
+		"MixinGL45C_BufferTracker",
+		"MixinGlBuffer_Init_BufferTracker",
+		"MixinBufferStorageImmutable_BufferTracker",
 		"MixinGlFramebuffer_AllocTracker"
 	],
 	"injectors": {

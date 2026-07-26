@@ -38,11 +38,12 @@ public class MixinGameRenderer_Metrics {
             int intervalTicks = cfg.allocSnapshotInterval * 20; // seconds → ticks
             allocSnapshotTicks++;
             if (allocSnapshotTicks >= intervalTicks) {
+                long snapshotTicks = allocSnapshotTicks; // capture before reset
                 allocSnapshotTicks = 0;
                 var summary = tracker.computeSummary();
                 VramAllocLogger.logSnapshot(summary,
                         MetricsEngine.getVramUsedMB(), MetricsEngine.getVramTotalMB(),
-                        allocSnapshotTicks / 20);
+                        snapshotTicks / 20);
             }
         }
     }
