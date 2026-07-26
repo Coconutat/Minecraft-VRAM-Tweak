@@ -28,7 +28,7 @@ public class MixinOptions_RenderDistance {
     private static final Logger LOG = LoggerFactory.getLogger("vram-tweak/governor");
     private static boolean traceInit;
 
-    @ModifyVariable(method = "updateViewRadius(I)V", at = @At("HEAD"), argsOnly = true, remap = false)
+    @ModifyVariable(method = "updateViewRadius(I)V", at = @At("HEAD"), argsOnly = true)
     private int capViewRadius(int radius) {
         try {
             int capped = VRAMGovernor.capRenderDistance(radius);
