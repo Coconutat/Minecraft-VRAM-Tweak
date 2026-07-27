@@ -9,6 +9,7 @@
 		"MixinGpuDevice_VRAMOptimize",
 		"MixinGameRenderer_Metrics",
 		"MixinOptions_RenderDistance",
+		"MixinOptions_EffectiveRenderDistance",
 		"MixinSpriteContents_AnimationLimit",
 		"MixinGui_Hud",
 		"MixinMinecraft_Hud",

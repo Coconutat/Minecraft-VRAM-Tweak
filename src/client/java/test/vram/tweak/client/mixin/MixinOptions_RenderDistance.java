@@ -42,9 +42,10 @@ public class MixinOptions_RenderDistance {
      * Intercept {@code calculateStorageRange(int)} — called from BOTH the
      * constructor (initial join) and {@code updateViewRadius} (dynamic changes).
      * This is the single true choke point. (Bug #2 fix)
+     * <p>MUST be static: {@code calculateStorageRange} is {@code private static}.</p>
      */
     @ModifyVariable(method = "calculateStorageRange(I)I", at = @At("HEAD"), argsOnly = true)
-    private int capStorageRangeRadius(int viewDistance) {
+    private static int capStorageRangeRadius(int viewDistance) {
         return capAndLog(viewDistance, "ctor/updateViewRadius");
     }
 
