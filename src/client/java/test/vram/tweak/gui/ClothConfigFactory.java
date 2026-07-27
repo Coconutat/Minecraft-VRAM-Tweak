@@ -4,7 +4,7 @@ import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -18,11 +18,16 @@ import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
 
 /**
- * Cloth Config GUI — VRAM / Texture / Governor / Particle / HUD.
+ * Cloth Config GUI — 4 类布局: VRAM / 纹理 / HUD / 诊断.
+ *
+ * <p>从 7 类合并而来：调速器并入 VRAM，实验性并入诊断，
+ * HUD 内部按性能/显存/高级分组。</p>
  */
 public class ClothConfigFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger("vram-tweak/gui");
+    private static final Component NEEDS_RESTART =
+            Component.literal(" ⚠").append(Component.translatable("vramtweak.gui.needsRestart"));
 
     public static Screen create(Screen parent) {
         LOG.info("[GUI] Config screen opened");
@@ -34,23 +39,17 @@ public class ClothConfigFactory {
                     VRAMConfig.save();
                     VRAMOptimizer.reload();
                     VRAMGovernor.reload();
-                    if (VRAMConfig.isVramRestartRequired()) {
-                        LOG.info("[GUI] Restart required, showing toast");
-                        var mc = Minecraft.getInstance();
-                        SystemToast.add(mc.getToastManager(),
-                            SystemToast.SystemToastId.PACK_LOAD_FAILURE,
-                            Component.translatable("vramtweak.gui.restartRequired.title"),
-                            Component.translatable("vramtweak.gui.restartRequired.message")
-                        );
-                    }
                 });
 
         var eb = builder.entryBuilder();
         var cfg = VRAMConfig.getInstance();
 
-        // ---- VRAM ----
+        // ================================================================
+        // 1. VRAM 优化（含调速器 + 实验性）
+        // ================================================================
         var vram = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.vram"));
 
+        // -- 主开关 --
         vram.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.vram.enabled"),
                         cfg.vram.enabled)
@@ -59,6 +58,7 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
                 .build());
 
+        // -- 阴影 --
         vram.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.shadowCapEnabled"),
                         cfg.vram.shadowCapEnabled)
@@ -78,6 +78,7 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.vram.shadowMapMaxSize = v)
                 .build());
 
+        // -- 格式降精度 --
         vram.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.formatDownscale"),
                         cfg.vram.formatDownscale)
@@ -94,6 +95,7 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.vram.depthDownscale = v)
                 .build());
 
+        // -- 预算追踪 --
         vram.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.budgetTracking"),
                         cfg.vram.budgetTracking)
@@ -111,7 +113,71 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.vram.budgetWarningPercent = v)
                 .build());
 
-        // ---- Texture ----
+        // -- 调速器（内嵌） --
+        vram.addEntry(eb.startTextDescription(
+                Component.translatable("vramtweak.gui.section.governor")).build());
+
+        vram.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.governor.enabled"),
+                        cfg.governor.enabled)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.governor.enabled.tooltip"))
+                .setSaveConsumer(v -> cfg.governor.enabled = v)
+                .build());
+
+        vram.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.hysteresis"),
+                        cfg.governor.hysteresis)
+                .setDefaultValue(10)
+                .setMin(2).setMax(30)
+                .setTooltip(Component.translatable("vramtweak.gui.option.hysteresis.tooltip"))
+                .setSaveConsumer(v -> cfg.governor.hysteresis = v)
+                .build());
+
+        vram.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.minDistance"),
+                        cfg.governor.minDistance)
+                .setDefaultValue(4)
+                .setMin(2).setMax(16)
+                .setTooltip(Component.translatable("vramtweak.gui.option.minDistance.tooltip"))
+                .setSaveConsumer(v -> cfg.governor.minDistance = v)
+                .build());
+
+        vram.addEntry(eb.startIntField(
+                        Component.translatable("vramtweak.gui.option.cooldownTicks"),
+                        cfg.governor.cooldownTicks)
+                .setDefaultValue(100)
+                .setMin(20).setMax(600)
+                .setTooltip(Component.translatable("vramtweak.gui.option.cooldownTicks.tooltip"))
+                .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
+                .build());
+
+        // -- 实验性 AMD 功能 --
+        if (cfg.showExperimental) {
+            vram.addEntry(eb.startTextDescription(
+                    Component.translatable("vramtweak.gui.section.experimental")).build());
+
+            vram.addEntry(eb.startBooleanToggle(
+                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
+                            cfg.experimental.pinnedMemory)
+                    .setDefaultValue(false)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
+                    .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
+                    .build());
+
+            vram.addEntry(eb.startIntField(
+                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
+                            cfg.experimental.pinnedMemoryMinSize)
+                    .setDefaultValue(1024)
+                    .setMin(32).setMax(8192)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
+                    .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
+                    .build());
+        }
+
+        // ================================================================
+        // 2. 纹理优化
+        // ================================================================
         var tex = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.texture"));
 
         tex.addEntry(eb.startBooleanToggle(
@@ -148,102 +214,10 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.texture.maxAtlasSize = v)
                 .build());
 
-        // ---- Governor ----
-        var governor = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.governor"));
-
-        governor.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.governor.enabled"),
-                        cfg.governor.enabled)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.governor.enabled.tooltip"))
-                .setSaveConsumer(v -> cfg.governor.enabled = v)
-                .build());
-
-        governor.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.hysteresis"),
-                        cfg.governor.hysteresis)
-                .setDefaultValue(10)
-                .setMin(2).setMax(30)
-                .setTooltip(Component.translatable("vramtweak.gui.option.hysteresis.tooltip"))
-                .setSaveConsumer(v -> cfg.governor.hysteresis = v)
-                .build());
-
-        governor.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.minDistance"),
-                        cfg.governor.minDistance)
-                .setDefaultValue(4)
-                .setMin(2).setMax(16)
-                .setTooltip(Component.translatable("vramtweak.gui.option.minDistance.tooltip"))
-                .setSaveConsumer(v -> cfg.governor.minDistance = v)
-                .build());
-
-        governor.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.cooldownTicks"),
-                        cfg.governor.cooldownTicks)
-                .setDefaultValue(100)
-                .setMin(20).setMax(600)
-                .setTooltip(Component.translatable("vramtweak.gui.option.cooldownTicks.tooltip"))
-                .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
-                .build());
-
-        // ---- Experimental (AMD-specific) — only visible when showExperimental is on ----
-        if (cfg.showExperimental) {
-            var experimental = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.experimental"));
-
-            experimental.addEntry(eb.startBooleanToggle(
-                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
-                            cfg.experimental.pinnedMemory)
-                    .setDefaultValue(false)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
-                    .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
-                    .build());
-
-            experimental.addEntry(eb.startIntField(
-                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
-                            cfg.experimental.pinnedMemoryMinSize)
-                    .setDefaultValue(1024)
-                    .setMin(32).setMax(8192)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
-                    .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
-                    .build());
-        }
-
-        // ---- HUD ----
+        // ================================================================
+        // 3. HUD 叠加层（按语义分组）
+        // ================================================================
         var hud = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.hud"));
-
-        // ---- Diagnostic ----
-        var diag = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.diagnostic"));
-
-        diag.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.verificationLog"),
-                        cfg.diagnostic.verificationLog)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.verificationLog.tooltip"))
-                .setSaveConsumer(v -> cfg.diagnostic.verificationLog = v)
-                .build());
-
-        diag.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.allocTracker"),
-                        cfg.diagnostic.allocTracker)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.allocTracker.tooltip"))
-                .setSaveConsumer(v -> {
-                    cfg.diagnostic.allocTracker = v;
-                    if (v) {
-                        VramAllocationTracker.getInstance().activate();
-                    } else {
-                        VramAllocationTracker.getInstance().deactivate();
-                    }
-                })
-                .build());
-
-        diag.addEntry(eb.startIntSlider(
-                        Component.translatable("vramtweak.gui.option.allocSnapshotInterval"),
-                        cfg.diagnostic.allocSnapshotInterval, 5, 120)
-                .setDefaultValue(30)
-                .setTooltip(Component.translatable("vramtweak.gui.option.allocSnapshotInterval.tooltip"))
-                .setSaveConsumer(v -> cfg.diagnostic.allocSnapshotInterval = v)
-                .build());
 
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.hud.enabled"),
@@ -265,92 +239,130 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.offsetY = v)
                 .build());
 
+        // -- 📈 性能 --
+        hud.addEntry(eb.startTextDescription(
+                Component.translatable("vramtweak.gui.section.performance")).build());
+
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showFps"), cfg.hud.showFps)
                 .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showFps.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.showFps = v)
                 .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showFpsAvg"), cfg.hud.showFpsAvg)
                 .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showFpsAvg.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.showFpsAvg = v)
                 .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showFps1Percent"), cfg.hud.showFps1Percent)
                 .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showFps1Percent.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.showFps1Percent = v)
                 .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showFps01Percent"), cfg.hud.showFps01Percent)
                 .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showFps01Percent.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.showFps01Percent = v)
                 .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showFrameTime"), cfg.hud.showFrameTime)
                 .setDefaultValue(true)
                 .setSaveConsumer(v -> cfg.hud.showFrameTime = v)
                 .build());
 
+        // -- 💾 显存 --
+        hud.addEntry(eb.startTextDescription(
+                Component.translatable("vramtweak.gui.section.memory")).build());
+
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showVram"), cfg.hud.showVram)
                 .setDefaultValue(true)
                 .setSaveConsumer(v -> cfg.hud.showVram = v)
                 .build());
-
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showAtlas"), cfg.hud.showAtlas)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showAtlas = v)
+                .build());
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showAllocations"), cfg.hud.showAllocations)
                 .setDefaultValue(false)
                 .setSaveConsumer(v -> cfg.hud.showAllocations = v)
                 .build());
-
-        hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showAtlas"), cfg.hud.showAtlas)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showAtlas.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.showAtlas = v)
-                .build());
-
-        hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showDownscales"), cfg.hud.showDownscales)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showDownscales.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.showDownscales = v)
-                .build());
-
-        hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showBudget"), cfg.hud.showBudget)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showBudget.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.showBudget = v)
-                .build());
-
-        hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showGovernor"), cfg.hud.showGovernor)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showGovernor.tooltip"))
-                .setSaveConsumer(v -> cfg.hud.showGovernor = v)
-                .build());
-
         hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showAllocBreakdown"),
                         cfg.hud.showAllocBreakdown)
                 .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showAllocBreakdown.tooltip"))
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
                 .build());
 
-        // ---- Info (read-only) ----
-        var info = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.info"));
+        // -- ⚙️ 高级 --
+        hud.addEntry(eb.startTextDescription(
+                Component.translatable("vramtweak.gui.section.advanced")).build());
 
-        info.addEntry(eb.startBooleanToggle(
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showGovernor"), cfg.hud.showGovernor)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showGovernor = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showDownscales"), cfg.hud.showDownscales)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showDownscales = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showBudget"), cfg.hud.showBudget)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showBudget = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showGpu"), cfg.hud.showGpu)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showGpu = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showGpuClocks"), cfg.hud.showGpuClocks)
+                .setDefaultValue(true)
+                .setSaveConsumer(v -> cfg.hud.showGpuClocks = v)
+                .build());
+
+        // ================================================================
+        // 4. 诊断 + 信息
+        // ================================================================
+        var diag = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.diagnostic"));
+
+        diag.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.verificationLog"),
+                        cfg.diagnostic.verificationLog)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.verificationLog.tooltip"))
+                .setSaveConsumer(v -> cfg.diagnostic.verificationLog = v)
+                .build());
+
+        diag.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.allocTracker"),
+                        cfg.diagnostic.allocTracker)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocTracker.tooltip"))
+                .setSaveConsumer(v -> {
+                    cfg.diagnostic.allocTracker = v;
+                    if (v) VramAllocationTracker.getInstance().activate();
+                    else VramAllocationTracker.getInstance().deactivate();
+                })
+                .build());
+
+        diag.addEntry(eb.startIntSlider(
+                        Component.translatable("vramtweak.gui.option.allocSnapshotInterval"),
+                        cfg.diagnostic.allocSnapshotInterval, 5, 120)
+                .setDefaultValue(30)
+                .setTooltip(Component.translatable("vramtweak.gui.option.allocSnapshotInterval.tooltip"))
+                .setSaveConsumer(v -> cfg.diagnostic.allocSnapshotInterval = v)
+                .build());
+
+        // -- 系统信息 --
+        diag.addEntry(eb.startTextDescription(
+                Component.translatable("vramtweak.gui.section.info")).build());
+
+        diag.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showExperimental"),
                         cfg.showExperimental)
                 .setDefaultValue(false)
@@ -358,7 +370,7 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.showExperimental = v)
                 .build());
 
-        info.addEntry(eb.startStrField(
+        diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.gpu"),
                         GPUDetector.isReady()
                                 ? GPUDetector.getGPU() + " — " + GPUDetector.getRenderer()
@@ -367,7 +379,7 @@ public class ClothConfigFactory {
                 .setTooltip(Component.translatable("vramtweak.gui.option.gpu.tooltip"))
                 .build());
 
-        info.addEntry(eb.startStrField(
+        diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.vramFree"),
                         GPUDetector.isReady()
                                 ? VRAMOptimizer.queryTotalVRAM() + " MB"
@@ -376,28 +388,26 @@ public class ClothConfigFactory {
                 .setTooltip(Component.translatable("vramtweak.gui.option.vramFree.tooltip"))
                 .build());
 
-        info.addEntry(eb.startStrField(
+        diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.fps"),
                         String.format("%.1f", MetricsEngine.getFps()))
                 .setDefaultValue("0")
                 .setTooltip(Component.translatable("vramtweak.gui.option.fps.tooltip"))
                 .build());
 
-        info.addEntry(eb.startStrField(
+        diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.textureAllocs"),
                         String.valueOf(MetricsEngine.getTextureAllocs()))
                 .setDefaultValue("0")
-                .setTooltip(Component.translatable("vramtweak.gui.option.textureAllocs.tooltip"))
                 .build());
 
-        info.addEntry(eb.startStrField(
+        diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.allocTracked"),
                         VramAllocationTracker.getInstance().isActive()
                                 ? VramAllocationTracker.getInstance().getAliveCount() + " alive / "
                                   + VramAllocationTracker.getInstance().getTotalAllocs() + " total"
                                 : Component.translatable("vramtweak.gui.option.allocTracker.disabled").getString())
                 .setDefaultValue("disabled")
-                .setTooltip(Component.translatable("vramtweak.gui.option.allocTracked.tooltip"))
                 .build());
 
         return builder.build();

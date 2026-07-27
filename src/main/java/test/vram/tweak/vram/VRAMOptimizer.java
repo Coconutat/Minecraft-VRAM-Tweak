@@ -274,11 +274,11 @@ public class VRAMOptimizer {
 
     // ---- format downscale ----
 
-    /** Only downscale 16-bit color formats. 1.21.11 TextureFormat only has RGBA8 — no-op. */
+    /** Downscale 16-bit color formats (RGBA16F → RGBA8). 26.2 GpuFormat has RGBA16F. */
     public static boolean shouldDownscaleFormat(String formatName) {
         if (!enabled || !formatDownscale || formatName == null) return false;
         if (formatName.startsWith("D") || formatName.startsWith("S")) return false;
-        return formatName.contains("16"); // ponytail: dormant, TextureFormat has no 16-bit in 1.21.11
+        return formatName.contains("16") || formatName.contains("FLOAT");
     }
 
     public static void logDownscale(String source, String original) {
@@ -310,15 +310,15 @@ public class VRAMOptimizer {
 
     // ---- depth downscale ----
 
-    /** 1.21.11 TextureFormat only has DEPTH32, no lower depth format — no-op. */
+    /** 26.2 GpuFormat: D32_FLOAT → D16_UNORM. */
     public static boolean shouldDownscaleDepth(String formatName) {
-        return enabled && depthDownscale && "DEPTH32".equals(formatName);
+        return enabled && depthDownscale && "D32_FLOAT".equals(formatName);
     }
 
     public static void logDepthDownscale(String original) {
-        VerificationLogger.logDepthDownscale(original, "DEPTH32");
+        VerificationLogger.logDepthDownscale(original, "D16_UNORM");
         if (downscaleLogs < MAX_LOGS) {
-            LOGGER.debug("Depth downscale: {} (1.21.11: no lower depth format)", original);
+            LOGGER.debug("Depth downscale: {} → D16_UNORM", original);
             downscaleLogs++;
         } else if (downscaleLogs == MAX_LOGS) {
             LOGGER.debug("Downscale log limit reached.");

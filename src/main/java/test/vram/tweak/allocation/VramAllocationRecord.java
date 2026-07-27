@@ -20,7 +20,7 @@ public final class VramAllocationRecord {
     private final int depth;
     private final int mipLevels;
     private final int glInternalFormat;
-    private final long estimatedBytes;
+    private long estimatedBytes;
 
     // ---- Classification ----
     private volatile AllocationCategory category;
@@ -94,12 +94,32 @@ public final class VramAllocationRecord {
 
     /** Promotes this record to a render-target category with source hint. */
     public void markAsRenderTarget(AllocationCategory rtCategory, SourceTag rtSource) {
-        if (rtCategory != null && rtCategory.isRenderTarget()) {
-            this.category = rtCategory;
-            // Only override source if currently unknown (preserve A-layer label if available)
-            if (this.source == SourceTag.UNKNOWN_SOURCE && rtSource != SourceTag.UNKNOWN_SOURCE) {
-                this.source = rtSource;
-            }
+        if (rtCategory == null || !rtCategory.isRenderTarget()) return;
+
+        // Bug-fix: do NOT override atlas/texture categories.
+        // Atlas textures (e.g. shield_patterns.png 6144×4096) may be temporarily
+        // attached to framebuffers by Minecraft's composition pipeline, but they
+        // are NOT render targets — they're regular textures used as FBO inputs.
+        boolean isAtlas = this.category == AllocationCategory.TEXTURE_ATLAS
+                       || this.category == AllocationCategory.TEXTURE_BLOCK
+                       || this.category == AllocationCategory.TEXTURE_ENTITY
+                       || this.category == AllocationCategory.TEXTURE_ITEM
+                       || this.category == AllocationCategory.TEXTURE_ENVIRONMENT
+                       || this.category == AllocationCategory.TEXTURE_FONT
+                       || this.category == AllocationCategory.TEXTURE_GUI
+                       || this.category == AllocationCategory.TEXTURE_PAINTING
+                       || this.category == AllocationCategory.TEXTURE_MISC;
+        if (isAtlas) return;
+
+        boolean wasUnknown = this.category == AllocationCategory.UNKNOWN;
+        this.category = rtCategory;
+
+        // D-layer has better context: always trust its source hint.
+        // Only preserve A-layer source when D-layer source is unknown.
+        if (rtSource != SourceTag.UNKNOWN_SOURCE) {
+            this.source = rtSource;
+        } else if (!wasUnknown) {
+            // Keep existing source (A-layer label was more specific)
         }
     }
 
@@ -112,7 +132,9 @@ public final class VramAllocationRecord {
     public int getMipLevels() { return mipLevels; }
     public int getGlInternalFormat() { return glInternalFormat; }
     public long getEstimatedBytes() { return estimatedBytes; }
+    public void setEstimatedBytes(long bytes) { this.estimatedBytes = bytes; }
     public AllocationCategory getCategory() { return category; }
+    public void setCategory(AllocationCategory cat) { this.category = cat; }
     public SourceTag getSource() { return source; }
     public String getLabel() { return label; }
     public long getAllocTick() { return allocTick; }

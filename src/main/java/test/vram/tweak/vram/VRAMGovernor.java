@@ -33,6 +33,11 @@ public class VRAMGovernor {
     private static int cooldown;
     private static boolean irisActive;
     private static boolean underPressure;
+    private static boolean capDirty;              // true when cap changed and needs applying
+
+    // VRAM query failure diagnostic
+    private static int vramQueryFailures;          // consecutive failures
+    private static boolean vramQueryFailLogged;    // only log once per burst
 
     /** Called once at init. */
     public static void initialize() {
@@ -53,6 +58,9 @@ public class VRAMGovernor {
         userRenderDistance = -1;
         cooldown = 0;
         underPressure = false;
+        capDirty = false;
+        vramQueryFailures = 0;
+        vramQueryFailLogged = false;
 
         if (enabled) {
             LOGGER.info("VRAM governor ON. target={}%, hysteresis={}%, minDist={}, cooldown={}t{}",
@@ -70,7 +78,19 @@ public class VRAMGovernor {
         if (cooldown > 0) { cooldown--; return; }
 
         long freeKB = VRAMOptimizer.queryFreeVRAM();
-        if (freeKB <= 0) return;
+        if (freeKB <= 0) {
+            vramQueryFailures++;
+            if (vramQueryFailures >= 60 && !vramQueryFailLogged) {
+                LOGGER.warn("VRAM query failing for {} consecutive frames — governor cannot adjust. " +
+                        "GPU={}, freeKB={}", vramQueryFailures,
+                        test.vram.tweak.gpu.GPUDetector.getGPU(), freeKB);
+                vramQueryFailLogged = true;
+            }
+            return;
+        }
+        vramQueryFailures = 0;
+        vramQueryFailLogged = false;
+
         long totalMB = VRAMOptimizer.queryTotalVRAM();
         if (totalMB <= 0) return;
 
@@ -91,6 +111,7 @@ public class VRAMGovernor {
             }
             if (currentCap > minDistance) {
                 currentCap = Math.max(minDistance, currentCap - 1);
+                capDirty = true;
                 cooldown = stepCooldown;
                 VerificationLogger.logGovernorAction(
                         irisActive ? "iris_reduce" : "reduce",
@@ -104,6 +125,7 @@ public class VRAMGovernor {
             int prevCap = currentCap;
             currentCap = -1;
             userRenderDistance = -1;
+            capDirty = true;
             cooldown = stepCooldown;
             VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
             LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
@@ -120,6 +142,23 @@ public class VRAMGovernor {
         userRenderDistance = original; // always track user's setting
         if (currentCap < 0) return original; // no active cap
         return Math.min(original, currentCap);
+    }
+
+    /**
+     * Called by Mixin each frame. Returns the view radius to apply via
+     * {@code updateViewRadius()}, or -1 if no change pending.
+     * The caller MUST call {@code updateViewRadius()} with the returned value
+     * and then call this again (which will return -1 after consuming).
+     */
+    public static int consumeCapChange() {
+        if (!enabled || !capDirty) return -1;
+        capDirty = false;
+        // currentCap < 0 means restore: use userRenderDistance (capped to original)
+        // If userRenderDistance is also -1 (unknown), use a high safe default
+        if (currentCap < 0) {
+            return userRenderDistance > 0 ? userRenderDistance : 32;
+        }
+        return currentCap;
     }
 
     /** Current cap (-1 means no cap). */

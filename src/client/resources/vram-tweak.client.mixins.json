@@ -5,10 +5,12 @@
 	"client": [
 		"accessor.SpriteContentsAccessor",
 		"accessor.GlTextureAccessor",
+		"accessor.GlBufferAccessor",
 		"MixinMinecraftClient_Init",
 		"MixinGpuDevice_VRAMOptimize",
 		"MixinGameRenderer_Metrics",
 		"MixinOptions_RenderDistance",
+		"MixinOptions_EffectiveRenderDistance",
 		"MixinSpriteContents_AnimationLimit",
 		"MixinGui_Hud",
 		"MixinMinecraft_Hud",
@@ -16,6 +18,10 @@
 		"MixinGameRenderer_PerfMonitor",
 		"MixinGlStateManager_PinnedMemory",
 		"MixinGlStateManager_AllocTracker",
+		"MixinGlStateManager_BufferTracker",
+		"MixinGL45C_BufferTracker",
+		"MixinGlBuffer_Init_BufferTracker",
+		"MixinBufferStorageImmutable_BufferTracker",
 		"MixinGlFramebuffer_AllocTracker"
 	],
 	"injectors": {

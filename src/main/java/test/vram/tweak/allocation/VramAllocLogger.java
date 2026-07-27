@@ -21,9 +21,13 @@ public final class VramAllocLogger {
 
     private VramAllocLogger() { /* utility class */ }
 
-    // ---- Level 1: Per-allocation ----
+    // ---- Level 1: Per-allocation (texture) ----
 
     public static void logAlloc(VramAllocationRecord rec) {
+        if (rec.getCategory().isBuffer()) {
+            logAllocBuf(rec);
+            return;
+        }
         VramModLog.debug(String.format(
                 "[AllocTracker] ALLOC  tex=%d  cat=%s  src=%s  %d×%d  mip=%d  fmt=0x%s  est=%s  caller=%s",
                 rec.getGlObjectId(),
@@ -36,11 +40,23 @@ public final class VramAllocLogger {
                 rec.getCallerClass()));
     }
 
+    /** Buffer allocation log entry. */
+    public static void logAllocBuf(VramAllocationRecord rec) {
+        VramModLog.debug(String.format(
+                "[AllocTracker] ALLOC  buf=%d  cat=%s  src=%s  size=%s  caller=%s",
+                rec.getGlObjectId(),
+                rec.getCategory(),
+                rec.getSource(),
+                formatBytes(rec.getEstimatedBytes()),
+                rec.getCallerClass()));
+    }
+
     public static void logFree(int glObjectId, VramAllocationRecord rec) {
         if (rec != null) {
+            String type = rec.getCategory().isBuffer() ? "buf" : "tex";
             VramModLog.debug(String.format(
-                    "[AllocTracker] FREE   tex=%d  cat=%s  src=%s  %d×%d  est=%s  lifetime=%ds",
-                    glObjectId,
+                    "[AllocTracker] FREE   %s=%d  cat=%s  src=%s  %d×%d  est=%s  lifetime=%ds",
+                    type, glObjectId,
                     rec.getCategory(),
                     rec.getSource(),
                     rec.getWidth(), rec.getHeight(),
