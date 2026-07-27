@@ -28,10 +28,10 @@ VRAM Tweak intercepts GPU texture creation at the OpenGL level via Mixin injecti
 | **Shadow map cap** | Limit shadow map resolution | ✅ Stable |
 | **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
 | **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ✅ Stable |
-
-> ⚠️ **The render distance reduction is temporary and dynamic.** Your settings menu still shows the original value you configured. To see the actual effective render distance, check the HUD overlay — it displays the governor's current cap in real time. When VRAM recovers, the cap lifts automatically.
 | **Budget tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
 | **AllocTracker** | Intercept every GPU alloc/free, categorize by type & source | ✅ Stable |
+  
+> ⚠️ **The render distance reduction is temporary and dynamic.** Your settings menu still shows the original value you configured. To see the actual effective render distance, check the HUD overlay — it displays the governor's current cap in real time. When VRAM recovers, the cap lifts automatically.
 
 ### Conditional Features
 
