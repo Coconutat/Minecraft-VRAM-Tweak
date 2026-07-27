@@ -1,6 +1,8 @@
 package test.vram.tweak.client.mixin;
 
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,6 +19,9 @@ import test.vram.tweak.vram.VRAMOptimizer;
 
 /**
  * Hook GameRenderer.render(DeltaTracker, boolean) for per-frame metrics + VRAM budget + governor.
+ *
+ * <p>Also triggers {@code ClientChunkCache.updateViewRadius()} when governor changes
+ * the render distance cap — this is the active enforcement path (Bug #1 fix).</p>
  */
 @Mixin(GameRenderer.class)
 public class MixinGameRenderer_Metrics {
@@ -28,6 +33,7 @@ public class MixinGameRenderer_Metrics {
     private void onFrameEnd(DeltaTracker delta, boolean tick, CallbackInfo ci) {
         VRAMOptimizer.onFrameEnd();
         VRAMGovernor.onFrameEnd();
+        applyGovernorCap();   // Bug #1: actively push cap to ClientChunkCache
         MetricsEngine.onFrame(delta.getGameTimeDeltaTicks());
         VramFrameCounter.getInstance().onFrame();
 
@@ -45,6 +51,27 @@ public class MixinGameRenderer_Metrics {
                         MetricsEngine.getVramUsedMB(), MetricsEngine.getVramTotalMB(),
                         snapshotTicks / 20);
             }
+        }
+    }
+
+    /**
+     * Actively applies governor cap by calling {@code updateViewRadius}.
+     * Previously the governor only set internal state and waited for the server
+     * to send a render-distance packet — which rarely happens in normal gameplay.
+     */
+    private static void applyGovernorCap() {
+        int newRadius = VRAMGovernor.consumeCapChange();
+        if (newRadius < 2) return;  // 2 is absolute minimum (calculateStorageRange floors at 2)
+
+        try {
+            var level = Minecraft.getInstance().level;
+            if (level == null) return;
+            var source = level.getChunkSource();
+            if (source instanceof ClientChunkCache cache) {
+                cache.updateViewRadius(newRadius);
+            }
+        } catch (Exception e) {
+            // Safe — this runs every frame, don't spam
         }
     }
 }
