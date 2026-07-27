@@ -20,7 +20,7 @@ public final class VramAllocationRecord {
     private final int depth;
     private final int mipLevels;
     private final int glInternalFormat;
-    private final long estimatedBytes;
+    private long estimatedBytes;
 
     // ---- Classification ----
     private volatile AllocationCategory category;
@@ -132,7 +132,9 @@ public final class VramAllocationRecord {
     public int getMipLevels() { return mipLevels; }
     public int getGlInternalFormat() { return glInternalFormat; }
     public long getEstimatedBytes() { return estimatedBytes; }
+    public void setEstimatedBytes(long bytes) { this.estimatedBytes = bytes; }
     public AllocationCategory getCategory() { return category; }
+    public void setCategory(AllocationCategory cat) { this.category = cat; }
     public SourceTag getSource() { return source; }
     public String getLabel() { return label; }
     public long getAllocTick() { return allocTick; }
