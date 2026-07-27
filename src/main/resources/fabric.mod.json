@@ -10,7 +10,7 @@
 		"sources": "https://github.com/Coconutat/Minecraft-VRAM-Tweak",
 		"issues": "https://github.com/Coconutat/Minecraft-VRAM-Tweak/issues"
 	},
-	"license": "CC0-1.0",
+	"license": "GPL-2.0-only",
 	"icon": "assets/vram-tweak/icon.png",
 	"environment": "client",
 	"entrypoints": {
