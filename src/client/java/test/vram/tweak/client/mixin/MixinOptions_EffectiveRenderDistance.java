@@ -3,7 +3,8 @@ package test.vram.tweak.client.mixin;
 import net.minecraft.client.Options;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import test.vram.tweak.vram.VRAMGovernor;
 
@@ -17,8 +18,12 @@ import test.vram.tweak.vram.VRAMGovernor;
 @Mixin(Options.class)
 public class MixinOptions_EffectiveRenderDistance {
 
-    @ModifyVariable(method = "getEffectiveRenderDistance()I", at = @At("RETURN"), ordinal = 0)
-    private int capEffectiveRenderDistance(int effectiveDistance) {
-        return VRAMGovernor.capRenderDistance(effectiveDistance);
+    @Inject(method = "getEffectiveRenderDistance()I", at = @At("RETURN"), cancellable = true)
+    private void capEffectiveRenderDistance(CallbackInfoReturnable<Integer> cir) {
+        int original = cir.getReturnValue();
+        int capped = VRAMGovernor.capRenderDistance(original);
+        if (capped != original) {
+            cir.setReturnValue(capped);
+        }
     }
 }

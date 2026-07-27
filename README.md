@@ -27,7 +27,9 @@ VRAM Tweak intercepts GPU texture creation at the OpenGL level via Mixin injecti
 | **Depth downscale** | D32_FLOAT → D16_UNORM | ✅ Verified |
 | **Shadow map cap** | Limit shadow map resolution | ✅ Stable |
 | **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
-| **VRAM Governor** | Auto-lower render distance under VRAM pressure | ✅ Stable |
+| **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ✅ Stable |
+
+> ⚠️ **The render distance reduction is temporary and dynamic.** Your settings menu still shows the original value you configured. To see the actual effective render distance, check the HUD overlay — it displays the governor's current cap in real time. When VRAM recovers, the cap lifts automatically.
 | **Budget tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
 | **AllocTracker** | Intercept every GPU alloc/free, categorize by type & source | ✅ Stable |
 
@@ -168,11 +170,12 @@ Requires JDK 25+.
 ```
 Mixin Layer
 ├── MixinGpuDevice_VRAMOptimize      → createTexture() format/size cap
-├── MixinGameRenderer_Metrics        → per-frame stats + alloc snapshots
+├── MixinGameRenderer_Metrics        → per-frame stats + alloc snapshots + governor trigger
 ├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures
 ├── MixinGlFramebuffer_AllocTracker  → framebuffer attachment tracking
 ├── MixinSpriteContents_Animation    → animation frame truncation
-├── MixinOptions_RenderDistance      → governor hook
+├── MixinOptions_RenderDistance      → governor: ClientChunkCache cap
+├── MixinOptions_EffectiveRenderDistance → governor: Options read-side cap
 ├── MixinGui_Hud / MixinMinecraft_Hud → HUD overlay
 ├── MixinGlStateManager_PinnedMemory → AMD pinned memory (experimental)
 └── MixinGameRenderer_PerfMonitor    → AMD GPU clocks

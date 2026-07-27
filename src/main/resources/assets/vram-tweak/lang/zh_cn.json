@@ -37,7 +37,7 @@
   "vramtweak.gui.option.maxAtlasSize.tooltip": "纹理图集分辨率上限 (1024–16384)。超过则截断。\n▲ 增大 = 材质更清晰，但单张图集可能占用 240+ MB。\n▼ 减小 = 大幅节省显存，可能略微模糊（实测 4096 几乎无区别）。\n默认 4096。",
   "vramtweak.gui.category.governor": "VRAM 调速器",
   "vramtweak.gui.option.governor.enabled": "启用 VRAM 调速器",
-  "vramtweak.gui.option.governor.enabled.tooltip": "显存紧张时自动降低渲染距离 → 释放 VRAM。\n显存恢复后逐步还原 → 不影响体验。\n需配合回差/最低距离/冷却时间设置。",
+  "vramtweak.gui.option.governor.enabled.tooltip": "显存紧张时自动降低渲染距离 → 释放 VRAM。\n显存恢复后逐步还原 → 不影响体验。\n 降低是动态、临时的——在 HUD 上看实际生效值，设置菜单显示的仍是你的配置值。\n需配合回差/最低距离/冷却时间设置。",
   "vramtweak.gui.option.hysteresis": "回差 (%)",
   "vramtweak.gui.option.hysteresis.tooltip": "恢复渲染距离的缓冲带 (2–30)。\n显存需降至 (阈值 − 回差) 以下才会恢复。\n▲ 增大 = 更稳定，不会频繁切换，但恢复更慢。\n▼ 减小 = 恢复更快，但可能来回抖动。\n默认 10%。",
   "vramtweak.gui.option.minDistance": "最低渲染距离 (chunks)",

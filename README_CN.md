@@ -27,7 +27,9 @@ VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截�
 | **深度缓冲降精度** | D32_FLOAT → D16_UNORM | ✅ 已验证 |
 | **阴影贴图上限** | 限制阴影贴图分辨率 | ✅ 稳定 |
 | **动画帧限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
-| **VRAM 调速器** | 显存紧张时自动降低渲染距离 | ✅ 稳定 |
+| **VRAM 调速器** | 显存紧张时自动降低渲染距离，主动执行 | ✅ 稳定 |
+
+> ⚠️ **渲染距离降低是临时的、动态的。** 设置菜单里显示的仍是你配置的原始值。查看实际生效的渲染距离请打开 HUD 叠加层——它会实时显示调速器当前上限。显存恢复后上限自动解除。
 | **预算追踪** | 每帧轮询 VRAM 用量 + 可配置告警 | ✅ 稳定 |
 | **AllocTracker** | 拦截每笔 GPU 分配/释放，按类型和来源分类 | ✅ 稳定 |
 
@@ -168,11 +170,12 @@ VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截�
 ```
 Mixin 注入层
 ├── MixinGpuDevice_VRAMOptimize      → createTexture() 格式/尺寸上限
-├── MixinGameRenderer_Metrics        → 逐帧统计 + 分配快照
+├── MixinGameRenderer_Metrics        → 逐帧统计 + 分配快照 + 调速器触发
 ├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures 拦截
 ├── MixinGlFramebuffer_AllocTracker  → 帧缓冲附件追踪
 ├── MixinSpriteContents_Animation    → 动画帧截断
-├── MixinOptions_RenderDistance      → 调速器钩子
+├── MixinOptions_RenderDistance      → 调速器: ClientChunkCache 区块加载上限
+├── MixinOptions_EffectiveRenderDistance → 调速器: Options 读取侧上限
 ├── MixinGui_Hud / MixinMinecraft_Hud → HUD 叠加层
 ├── MixinGlStateManager_PinnedMemory → AMD 钉住内存（实验性）
 └── MixinGameRenderer_PerfMonitor    → AMD GPU 频率监控
