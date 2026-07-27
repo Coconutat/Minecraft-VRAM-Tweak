@@ -194,4 +194,4 @@ Client (src/client)
 
 ## License
 
-CC0 1.0 Universal. See [LICENSE](LICENSE).
+GNU General Public License v2.0. See [LICENSE](LICENSE).
