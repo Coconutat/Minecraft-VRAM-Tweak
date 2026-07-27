@@ -194,4 +194,4 @@ Mixin 注入层
 
 ## 许可证
 
-CC0 1.0 Universal。详见 [LICENSE](LICENSE)。
+GNU General Public License v2.0。详见 [LICENSE](LICENSE)。
