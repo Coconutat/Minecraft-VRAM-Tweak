@@ -14,7 +14,6 @@ import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.eviction.TextureCompressor;
-import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -154,50 +153,6 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
                 .build());
 
-        // -- 实验性 AMD 功能 --
-        if (cfg.showExperimental) {
-            vram.addEntry(eb.startTextDescription(
-                    Component.translatable("vramtweak.gui.section.experimental")).build());
-
-            vram.addEntry(eb.startBooleanToggle(
-                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemory"),
-                            cfg.experimental.pinnedMemory)
-                    .setDefaultValue(false)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemory.tooltip"))
-                    .setSaveConsumer(v -> cfg.experimental.pinnedMemory = v)
-                    .build());
-
-            vram.addEntry(eb.startIntField(
-                            Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize"),
-                            cfg.experimental.pinnedMemoryMinSize)
-                    .setDefaultValue(1024)
-                    .setMin(32).setMax(8192)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
-                    .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
-                    .build());
-
-            vram.addEntry(eb.startBooleanToggle(
-                            Component.translatable("vramtweak.gui.option.experimental.textureEviction"),
-                            cfg.experimental.textureEviction)
-                    .setDefaultValue(false)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.textureEviction.tooltip"))
-                    .setSaveConsumer(v -> {
-                        cfg.experimental.textureEviction = v;
-                        if (v) VramEvictionManager.getInstance().activate();
-                        else VramEvictionManager.getInstance().deactivate();
-                    })
-                    .build());
-
-            vram.addEntry(eb.startIntSlider(
-                            Component.translatable("vramtweak.gui.option.experimental.evictionThresholdPercent"),
-                            cfg.experimental.evictionThresholdPercent, 50, 95)
-                    .setDefaultValue(80)
-                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.evictionThresholdPercent.tooltip"))
-                    .setSaveConsumer(v -> cfg.experimental.evictionThresholdPercent = v)
-                    .build());
-
-        }
-
         // ================================================================
         // 2. 纹理优化
         // ================================================================
@@ -235,6 +190,17 @@ public class ClothConfigFactory {
                 .setMin(1024).setMax(16384)
                 .setTooltip(Component.translatable("vramtweak.gui.option.maxAtlasSize.tooltip"))
                 .setSaveConsumer(v -> cfg.texture.maxAtlasSize = v)
+                .build());
+
+        tex.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.rgb5a1Conversion"),
+                        cfg.texture.rgb5a1Conversion)
+                .setDefaultValue(false)
+                .setTooltip(Component.translatable("vramtweak.gui.option.rgb5a1Conversion.tooltip"))
+                .setSaveConsumer(v -> {
+                    cfg.texture.rgb5a1Conversion = v;
+                    TextureCompressor.setEnabled(v);   // instant on/off, no restart
+                })
                 .build());
 
         // ================================================================
@@ -318,12 +284,6 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
                 .build());
         hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showEviction"),
-                        cfg.hud.showEviction)
-                .setDefaultValue(false)
-                .setSaveConsumer(v -> cfg.hud.showEviction = v)
-                .build());
-        hud.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.showCompression"),
                         cfg.hud.showCompression)
                 .setDefaultValue(false)
@@ -396,14 +356,6 @@ public class ClothConfigFactory {
         // -- 系统信息 --
         diag.addEntry(eb.startTextDescription(
                 Component.translatable("vramtweak.gui.section.info")).build());
-
-        diag.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showExperimental"),
-                        cfg.showExperimental)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.showExperimental.tooltip"))
-                .setSaveConsumer(v -> cfg.showExperimental = v)
-                .build());
 
         diag.addEntry(eb.startStrField(
                         Component.translatable("vramtweak.gui.option.gpu"),

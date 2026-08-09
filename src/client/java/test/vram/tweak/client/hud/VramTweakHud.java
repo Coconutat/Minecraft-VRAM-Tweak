@@ -17,7 +17,6 @@ import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
 import test.vram.tweak.client.gpu.AMDPerfMonitor;
 import test.vram.tweak.diagnostic.VramFrameCounter;
-import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.gpu.GPUInfo;
@@ -189,22 +188,6 @@ public class VramTweakHud {
             var label = Component.translatable("vramtweak.hud.budget").getString();
             String peakColor = peakPct >= 80 ? "§c" : "§a";
             textList.add(Component.literal(label + " " + status + irisTag + " §f(peak " + peakColor + peakPct + "%§f)"));
-        }
-
-        // ---- Eviction status ----
-        if (hud.showEviction) {
-            var mgr = VramEvictionManager.getInstance();
-            if (mgr.isActive()) {
-                int evicted = mgr.getEvictedCount();
-                int backups = mgr.getBackupCount();
-                long savedMB = mgr.getBytesSaved() / (1024 * 1024);
-                var label = Component.translatable("vramtweak.hud.eviction").getString();
-                if (evicted > 0) {
-                    textList.add(Component.literal(label + " §eEvict:" + evicted + " §7Bk:" + backups + " §aSaved:§f" + savedMB + "MB"));
-                } else {
-                    textList.add(Component.literal(label + " §aOK §7(Bk:" + backups + ")"));
-                }
-            }
         }
 
         // ---- Compression status ----

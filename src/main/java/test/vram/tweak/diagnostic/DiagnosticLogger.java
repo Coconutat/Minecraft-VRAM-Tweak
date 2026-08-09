@@ -187,9 +187,7 @@ public class DiagnosticLogger {
         } else {
             sb.append("Vanilla GlStateManager path\n");
         }
-        sb.append("  PinnedMemory: PBO pool (").append(VRAMConfig.getInstance().experimental.pinnedMemoryMinSize).append("px threshold)\n");
-        sb.append("  PBO pool sizes: 512KB, 2MB, 8MB, 32MB (persistent coherent mapping)\n");
-        sb.append("  Hooks: _texImage2D(ByteBuffer) + _texSubImage2D(ByteBuffer) (long path uses native pointer directly)\n");
+        sb.append("  Hooks: _texImage2D(ByteBuffer) + _texSubImage2D(ByteBuffer) + GlCommandEncoder.writeToTexture (26.2 main path)\n");
         sb.append("\n");
 
         // Config
@@ -201,10 +199,6 @@ public class DiagnosticLogger {
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
-        sb.append("  Show Experimental: ").append(c.showExperimental).append("\n");
-        sb.append("  Experimental:\n");
-        sb.append("    Pinned Memory: ").append(c.experimental.pinnedMemory).append("\n");
-        sb.append("    Pinned Memory min size: ").append(c.experimental.pinnedMemoryMinSize).append(" px\n");
 
         // Write
         try {

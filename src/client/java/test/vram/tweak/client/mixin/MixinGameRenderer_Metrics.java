@@ -14,7 +14,6 @@ import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VramFrameCounter;
-import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
 
@@ -61,9 +60,6 @@ public class MixinGameRenderer_Metrics {
                 }
             }
         }
-
-        // Eviction manager: check VRAM usage and evict if needed
-        VramEvictionManager.getInstance().onFrame();
     }
 
     /**

@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import test.vram.tweak.VRAMTweak;
-import test.vram.tweak.client.gpu.PinnedMemory;
 import test.vram.tweak.diagnostic.DiagnosticLogger;
 import test.vram.tweak.diagnostic.VerificationLogger;
 import test.vram.tweak.gpu.GPUDetector;
@@ -22,8 +21,6 @@ public class MixinMinecraftClient_Init {
     private void onInit(CallbackInfo ci) {
         try {
             GPUDetector.initialize();
-            // Check GL_AMD_pinned_memory availability at startup
-            PinnedMemory.initCheck();
             DiagnosticLogger.run();
             VerificationLogger.logConfigSnapshot();
             VRAMOptimizer.initialize();

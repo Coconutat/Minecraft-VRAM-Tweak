@@ -3,13 +3,11 @@ package test.vram.tweak.eviction;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.lwjgl.opengl.GL11C;
-import org.lwjgl.opengl.GL12C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import test.vram.tweak.diagnostic.VramModLog;
 
 /**
  * RGB5A1 texture compression utility.
@@ -20,7 +18,7 @@ import test.vram.tweak.diagnostic.VramModLog;
  * have binary alpha.</p>
  *
  * <p>Based on the approach from vram-killer mod, adapted for vram-tweak's
- * eviction system.</p>
+ * 26.2 writeToTexture hook.</p>
  */
 public final class TextureCompressor {
 
@@ -30,6 +28,13 @@ public final class TextureCompressor {
     private static volatile int convertedCount = 0;
     private static volatile int skippedCount = 0;
     private static volatile long savedBytes = 0;
+
+    // GL texture ids already converted to RGB5A1 storage via the writeToTexture hook.
+    // Subsequent mip-level uploads for these ids must be written as RGB5A1 too.
+    private static final Set<Integer> COMPRESSED_IDS = ConcurrentHashMap.newKeySet();
+
+    public static boolean isCompressed(int glObjectId) { return COMPRESSED_IDS.contains(glObjectId); }
+    public static void markCompressed(int glObjectId) { COMPRESSED_IDS.add(glObjectId); }
 
     private TextureCompressor() {}
 
@@ -41,103 +46,46 @@ public final class TextureCompressor {
 
     public static boolean isEnabled() { return enabled; }
 
-    // ---- Conversion ----
+    // ---- Pure pixel helpers (writeToTexture hook, 26.2 main upload path) ----
+    // ponytail: these are pure byte/bit ops, unit-testable without GL.
 
-    /**
-     * Attempt to compress a texture from RGBA8 to RGB5A1 in-place.
-     *
-     * <p>Must be called on the render thread, AFTER the original
-     * {@code glTexImage2D} has completed.</p>
-     *
-     * @param texId          GL texture object ID
-     * @param width          texture width in pixels
-     * @param height         texture height in pixels
-     * @param internalformat GL internal format used for the original upload
-     * @param format         GL format used for the original upload
-     * @param type           GL type used for the original upload
-     * @param pixels         the original pixel data (ByteBuffer)
-     * @param label          texture label (for logging)
-     * @return true if the texture was converted
-     */
-    public static boolean tryCompress(int texId, int width, int height,
-                                       int internalformat, int format, int type,
-                                       ByteBuffer pixels, String label) {
-        if (!enabled) return false;
-        if (pixels == null || width < 4 || height < 4) return false;
-
-        // Only convert RGBA8 (GL_RGBA8 = 0x8058) with GL_RGBA format and GL_UNSIGNED_BYTE type
-        if (internalformat != 0x8058 /*GL_RGBA8*/) return false;
-        if (format != GL11C.GL_RGBA) return false;
-        if (type != GL11C.GL_UNSIGNED_BYTE) return false;
-
-        int pixelCount = width * height;
-        int expectedBytes = pixelCount * 4;
-        if (pixels.remaining() < expectedBytes) return false;
-
-        // Check if alpha is binary (all 0 or 255)
-        int pos = pixels.position();
-        boolean allBinaryAlpha = true;
+    /** True if every alpha byte in the RGBA8 block is 0 or 255 (binary alpha). */
+    public static boolean isBinaryAlpha(ByteBuffer pixels, int pixelCount, int offset) {
         for (int i = 0; i < pixelCount; i++) {
-            int alpha = pixels.get(pos + i * 4 + 3) & 0xFF;
-            if (alpha != 0 && alpha != 255) {
-                allBinaryAlpha = false;
-                break;
-            }
+            int a = pixels.get(offset + i * 4 + 3) & 0xFF;
+            if (a != 0 && a != 255) return false;
         }
+        return true;
+    }
 
-        if (!allBinaryAlpha) {
-            skippedCount++;
-            if (convertedCount == 0 && skippedCount <= 5) {
-                VramModLog.debug("[Compress] SKIP non-binary alpha: " + label + " " + width + "x" + height);
-            }
-            return false;
-        }
-
-        // Convert RGBA8 → RGB5A1
-        ShortBuffer shortBuffer = ByteBuffer.allocateDirect(pixelCount * 2)
-                .order(ByteOrder.nativeOrder())
-                .asShortBuffer();
-
+    /** Convert an RGBA8 pixel block to RGB5A1 (2 bytes/px, native order, flipped). */
+    public static ShortBuffer toRgb5a1(ByteBuffer pixels, int pixelCount, int offset) {
+        ShortBuffer out = ByteBuffer.allocateDirect(pixelCount * 2)
+                .order(ByteOrder.nativeOrder()).asShortBuffer();
         for (int i = 0; i < pixelCount; i++) {
-            int idx = pos + i * 4;
+            int idx = offset + i * 4;
             int r = (pixels.get(idx) & 0xFF) >> 3;
             int g = (pixels.get(idx + 1) & 0xFF) >> 3;
             int b = (pixels.get(idx + 2) & 0xFF) >> 3;
             int a = (pixels.get(idx + 3) & 0xFF) > 127 ? 1 : 0;
-            shortBuffer.put((short) ((r << 11) | (g << 6) | (b << 1) | a));
+            out.put((short) ((r << 11) | (g << 6) | (b << 1) | a));
         }
-        shortBuffer.flip();
+        out.flip();
+        return out;
+    }
 
-        // Re-upload with RGB5A1 format
-        GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, texId);
-        GL11C.glTexImage2D(GL11C.GL_TEXTURE_2D, 0, GL11C.GL_RGB5_A1,
-                width, height, 0,
-                GL11C.GL_RGBA, GL12C.GL_UNSIGNED_SHORT_5_5_5_1,
-                shortBuffer);
-        GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, 0);
-
-        // Stats
+    /** Log a writeToTexture-level conversion and update stats. */
+    public static void logConverted(int texId, int w, int h, String label, long level0SavedBytes) {
         convertedCount++;
-        long originalSize = (long) width * height * 4;
-        long newSize = (long) width * height * 2;
-        savedBytes += (originalSize - newSize);
-
+        savedBytes += level0SavedBytes;
         if (convertedCount <= 5) {
-            LOGGER.info("RGB5A1压缩: tex={} {}×{} ({}KB→{}KB, 节省 {}KB) label={}",
-                    texId, width, height,
-                    originalSize / 1024, newSize / 1024,
-                    (originalSize - newSize) / 1024,
+            LOGGER.info("RGB5A1压缩(写入层): tex={} {}×{} 节省≈{}KB label={}",
+                    texId, w, h, level0SavedBytes / 1024,
                     label != null ? label : "?");
         }
         if (convertedCount == 6) {
-            LOGGER.info("RGB5A1压缩: 后续日志已抑制...");
+            LOGGER.info("RGB5A1压缩(写入层): 后续日志已抑制...");
         }
-
-        VramModLog.debug("[Compress] CONVERTED tex=" + texId
-                + " " + width + "x" + height
-                + " " + (originalSize / 1024) + "KB→" + (newSize / 1024) + "KB"
-                + " label=" + label);
-        return true;
     }
 
     // ---- Stats ----

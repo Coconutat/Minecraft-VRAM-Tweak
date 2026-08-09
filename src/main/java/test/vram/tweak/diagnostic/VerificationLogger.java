@@ -89,9 +89,6 @@ public class VerificationLogger {
                 + " hyst=" + c.governor.hysteresis + "%"
                 + " minDist=" + c.governor.minDistance
                 + " cooldown=" + c.governor.cooldownTicks + "t");
-        writeln("  Experimental: showExperimental=" + c.showExperimental
-                + " pinnedMemory=" + c.experimental.pinnedMemory
-                + " minSize=" + c.experimental.pinnedMemoryMinSize + "px");
         writeln("");
         writeln("[Events]");
         fileWriter.flush();
@@ -207,8 +204,6 @@ public class VerificationLogger {
         LOG.info("{} Governor: enabled={} hyst={}% minDist={} cooldown={}t",
                 PFX, c.governor.enabled, c.governor.hysteresis,
                 c.governor.minDistance, c.governor.cooldownTicks);
-        LOG.info("{} Experimental: showExperimental={} pinnedMemory={} minSize={}px",
-                PFX, c.showExperimental, c.experimental.pinnedMemory, c.experimental.pinnedMemoryMinSize);
         LOG.info("{} Full log → {}", PFX, filePath != null ? filePath.toAbsolutePath() : "pending...");
     }
 

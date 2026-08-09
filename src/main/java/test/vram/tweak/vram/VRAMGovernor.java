@@ -30,7 +30,7 @@ public class VRAMGovernor {
     // State
     private static int currentCap = -1;           // -1 = no cap, ≥4 = active cap
     private static int userRenderDistance = -1;   // user's actual setting (captured by mixin)
-    private static int cooldown;
+    private static long lastAdjustAt;              // wall-clock ms of last cap adjustment
     private static boolean irisActive;
     private static boolean underPressure;
     private static boolean capDirty;              // true when cap changed and needs applying
@@ -56,7 +56,7 @@ public class VRAMGovernor {
         irisActive = ModCompat.isIrisLoaded();
         currentCap = -1;
         userRenderDistance = -1;
-        cooldown = 0;
+        lastAdjustAt = 0;
         underPressure = false;
         capDirty = false;
         vramQueryFailures = 0;
@@ -75,7 +75,12 @@ public class VRAMGovernor {
     public static void onFrameEnd() {
         if (!enabled) return;
 
-        if (cooldown > 0) { cooldown--; return; }
+        // Cooldown is wall-clock ms (NOT per-frame: at 500+ fps a frame-based
+        // cooldown burns in under a second and the cap drops multiple notches per
+        // second — that was the oscillation bug in the 13:52 logs).
+        long now = System.currentTimeMillis();
+        long stepCooldownMs = (irisActive ? cooldownTicks * 2L : cooldownTicks) * 50L; // 1 tick = 50ms
+        if (now - lastAdjustAt < stepCooldownMs) return;
 
         long freeKB = VRAMOptimizer.queryFreeVRAM();
         if (freeKB <= 0) {
@@ -101,8 +106,6 @@ public class VRAMGovernor {
         boolean over = usedMB > thresholdMB;
         boolean recovered = usedMB < recoverMB;
 
-        int stepCooldown = irisActive ? cooldownTicks * 2 : cooldownTicks;
-
         if (over) {
             underPressure = true;
             // First pressure: start capping from user's actual render distance
@@ -112,7 +115,7 @@ public class VRAMGovernor {
             if (currentCap > minDistance) {
                 currentCap = Math.max(minDistance, currentCap - 1);
                 capDirty = true;
-                cooldown = stepCooldown;
+                lastAdjustAt = System.currentTimeMillis();
                 VerificationLogger.logGovernorAction(
                         irisActive ? "iris_reduce" : "reduce",
                         currentCap + 1, currentCap, usedMB, totalMB);
@@ -120,15 +123,29 @@ public class VRAMGovernor {
                         usedMB, totalMB, usedMB * 100 / totalMB, currentCap);
             }
         } else if (recovered && underPressure) {
-            // Restore in one shot when pressure is gone
-            underPressure = false;
-            int prevCap = currentCap;
-            currentCap = -1;
-            userRenderDistance = -1;
-            capDirty = true;
-            cooldown = stepCooldown;
-            VerificationLogger.logGovernorAction("restore", prevCap, -1, usedMB, totalMB);
-            LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
+            // Restore STEP BY STEP (one notch per cooldown), symmetric with the
+            // reduction — restoring all the way to the user setting in one shot
+            // made VRAM bounce back over 75% and immediately re-trigger, hence the
+            // 12<->6 flicker loop.
+            int target = userRenderDistance > 0 ? userRenderDistance : currentCap + 1;
+            if (currentCap < target) {
+                int prevCap = currentCap;
+                currentCap++;
+                capDirty = true;
+                lastAdjustAt = System.currentTimeMillis();
+                VerificationLogger.logGovernorAction("restore", prevCap, currentCap, usedMB, totalMB);
+                LOGGER.info("VRAM recovered a step: {}MB/{}MB. Render dist cap -> {}",
+                        usedMB, totalMB, currentCap);
+            } else {
+                // Fully back at the user's setting: lift the cap.
+                underPressure = false;
+                currentCap = -1;
+                userRenderDistance = -1;
+                capDirty = true;
+                lastAdjustAt = System.currentTimeMillis();
+                VerificationLogger.logGovernorAction("restore", currentCap, -1, usedMB, totalMB);
+                LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
+            }
         }
     }
 

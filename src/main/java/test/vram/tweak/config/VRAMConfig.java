@@ -38,12 +38,6 @@ public class VRAMConfig {
     @SerializedName("governor")
     public GovernorSection governor = new GovernorSection();
 
-    @SerializedName("showExperimental")
-    public boolean showExperimental = false;
-
-    @SerializedName("experimental")
-    public ExperimentalSection experimental = new ExperimentalSection();
-
     // ---- singleton ----
 
     private static VRAMConfig instance;
@@ -217,9 +211,6 @@ public class VRAMConfig {
         @SerializedName("showAllocBreakdown")
         public boolean showAllocBreakdown = false;
 
-        @SerializedName("showEviction")
-        public boolean showEviction = false;
-
         @SerializedName("showCompression")
         public boolean showCompression = false;
     }
@@ -238,28 +229,6 @@ public class VRAMConfig {
 
         @SerializedName("cooldownTicks")
         public int cooldownTicks = 100;
-    }
-
-    // ---- Experimental section (AMD-specific features) ----
-
-    public static class ExperimentalSection {
-        @SerializedName("pinnedMemory")
-        public boolean pinnedMemory = false;
-
-        @SerializedName("pinnedMemoryMinSize")
-        public int pinnedMemoryMinSize = 1024; // minimum texture size (px) to use pinned PBO
-
-        // ---- Texture Eviction (VRAM→RAM swap) ----
-
-        @SerializedName("textureEviction")
-        public boolean textureEviction = false;
-
-        @SerializedName("evictionThresholdPercent")
-        public int evictionThresholdPercent = 80;
-
-        @SerializedName("evictionTargetPercent")
-        public int evictionTargetPercent = 60;
-
     }
 
 }
