@@ -2,7 +2,11 @@ package test.vram.tweak.client.mixin;
 
 import java.nio.ByteBuffer;
 
+import org.lwjgl.opengl.GL11C;
+import org.lwjgl.opengl.GL12C;
+import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL32C;
+import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
@@ -54,6 +58,7 @@ public class MixinGlStateManager_PinnedMemory {
                     border, format, type, 0L);
             PinnedMemoryPool.unbindUnpack();
             ci.cancel();
+            PinnedMemory.markUploadHandled(); // Eviction's RETURN must not re-compress
             VRAM_TWEAK_PINNED_LOG.info("[Pinned] _texImage2D {}x{} via PBO pool", width, height);
         } catch (Exception e) {
             VRAM_TWEAK_PINNED_LOG.warn("[Pinned] _texImage2D failed, falling back", e);
@@ -91,6 +96,56 @@ public class MixinGlStateManager_PinnedMemory {
         } finally {
             PinnedMemoryPool.release(slot);
         }
+    }
+
+    // ---- _texSubImage2D (long / native pointer — NativeImage primary path) ----
+
+    @Inject(method = "_texSubImage2D(IIIIIIIIJ)V",
+            at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    private static void onTexSubImage2D_Long(int target, int level,
+                                              int xOffset, int yOffset,
+                                              int width, int height,
+                                              int format, int type, long pixels,
+                                              CallbackInfo ci) {
+        if (pixels == 0L || !shouldUsePinned(width, height)) return;
+
+        var slot = PinnedMemoryPool.acquire(MemoryUtil.memByteBuffer(
+                pixels, (int) uploadSize(width, height, format, type)));
+        if (slot == null) return;
+
+        try {
+            PinnedMemoryPool.bindAsUnpack(slot);
+            GL32C.glTexSubImage2D(target, level, xOffset, yOffset, width, height,
+                    format, type, 0L);
+            PinnedMemoryPool.unbindUnpack();
+            ci.cancel();
+            VRAM_TWEAK_PINNED_LOG.debug("[Pinned] _texSubImage2D(long) {}x{} at ({},{}) via PBO pool",
+                    width, height, xOffset, yOffset);
+        } catch (Exception e) {
+            VRAM_TWEAK_PINNED_LOG.warn("[Pinned] _texSubImage2D(long) failed, falling back", e);
+            PinnedMemoryPool.unbindUnpack();
+        } finally {
+            PinnedMemoryPool.release(slot);
+        }
+    }
+
+    /** Bytes for a w×h upload in the given format/type (conservative 4B/px default). */
+    @Unique
+    private static long uploadSize(int width, int height, int format, int type) {
+        int components = switch (format) {
+            case GL11C.GL_RED, GL11C.GL_DEPTH_COMPONENT -> 1;
+            case GL30C.GL_RG, GL30C.GL_DEPTH_STENCIL -> 2;
+            case GL11C.GL_RGB, GL12C.GL_BGR -> 3;
+            default -> 4;
+        };
+        int bytesPerComponent = switch (type) {
+            case GL11C.GL_UNSIGNED_BYTE, GL11C.GL_BYTE -> 1;
+            case GL11C.GL_UNSIGNED_SHORT, GL11C.GL_SHORT,
+                 GL12C.GL_UNSIGNED_SHORT_5_5_5_1, GL12C.GL_UNSIGNED_SHORT_5_6_5,
+                 GL12C.GL_UNSIGNED_SHORT_4_4_4_4 -> 2;
+            default -> 4;
+        };
+        return (long) width * height * components * bytesPerComponent;
     }
 
     // ---- Threshold check ----

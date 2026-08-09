@@ -21,7 +21,8 @@
 		"MixinGL45C_BufferTracker",
 		"MixinGlBuffer_Init_BufferTracker",
 		"MixinBufferStorageImmutable_BufferTracker",
-		"MixinGlFramebuffer_AllocTracker"
+		"MixinGlFramebuffer_AllocTracker",
+		"MixinGlStateManager_Eviction"
 	],
 	"injectors": {
 		"defaultRequire": 1

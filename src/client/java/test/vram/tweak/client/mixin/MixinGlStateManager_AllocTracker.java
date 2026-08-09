@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.mojang.blaze3d.opengl.GlStateManager;
 
 import test.vram.tweak.allocation.AllocLabelBridge;
+import test.vram.tweak.allocation.TextureFormatBytes;
 import test.vram.tweak.allocation.VramAllocationRecord;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.allocation.VramAllocLogger;
@@ -60,16 +61,7 @@ public class MixinGlStateManager_AllocTracker {
         try {
             int texId = getTextureBinding(target);
             if (texId == 0) return;
-
-            // _texImage2D is the primary allocation point — create a new record.
-            // If a record already exists for this texture (re-allocation), the old
-            // one is effectively stale; we create a new record.
-            VramAllocationRecord rec = buildRecord(texId, width, height, /*depth*/1,
-                    /*mipLevels*/0, internalformat, level);
-            tracker.recordAlloc(rec);
-
-            // Always log — Blaze3D uses _texImage2D(..., null) for storage allocation
-            VramAllocLogger.logAlloc(rec);
+            recordLevel(tracker, texId, width, height, internalformat);
         } catch (Exception ignored) {
             // Don't let tracking errors crash the game
         }
@@ -89,10 +81,7 @@ public class MixinGlStateManager_AllocTracker {
         try {
             int texId = getTextureBinding(target);
             if (texId == 0) return;
-
-            VramAllocationRecord rec = buildRecord(texId, width, height, /*depth*/1,
-                    /*mipLevels*/0, internalformat, level);
-            tracker.recordAlloc(rec);
+            recordLevel(tracker, texId, width, height, internalformat);
         } catch (Exception ignored) {
         }
     }
@@ -166,26 +155,35 @@ public class MixinGlStateManager_AllocTracker {
         };
     }
 
+    /**
+     * Record one storage level of a texture. MC 26.2 allocates each mip level
+     * (and each cubemap face) via a separate {@code _texImage2D} call with the
+     * SAME GL id — the first call creates the record, later calls accumulate
+     * their bytes into it. Before this, every mip overwrote the previous record,
+     * so a 4096×4096×13-mip atlas was tracked as its smallest (1×1) mip.
+     * ponytail: accumulation assumes the id isn't re-used while alive — delete
+     * is hooked, so freed ids are clean before GL can hand them out again.
+     */
     @Unique
-    private static VramAllocationRecord buildRecord(int texId, int width, int height,
-                                                     int depth, int mipLevels,
-                                                     int internalformat, int level) {
-        // Only create on level 0 (base level) to avoid duplicate records per mip
-        int effectiveMipLevels = (level == 0 && mipLevels == 0) ? 1 : mipLevels;
+    private static void recordLevel(VramAllocationTracker tracker, int texId,
+                                    int width, int height, int internalformat) {
+        VramAllocationRecord existing = tracker.getRecord(texId);
+        if (existing != null && existing.isAlive()) {
+            existing.setEstimatedBytes(existing.getEstimatedBytes()
+                    + (long) (width * (long) height * TextureFormatBytes.lookup(internalformat)));
+            return;
+        }
 
-        // Try to get label from the A-layer (GpuDevice.createTexture) bridge
+        // First level of this texture — create the record (single mip factor 1.0;
+        // higher mips are accumulated above).
         String label = AllocLabelBridge.consume();
-
-        // Simplified caller extraction
         String caller = extractCaller();
-
-        return new VramAllocationRecord(
-                texId, width, height, depth,
-                effectiveMipLevels, internalformat,
-                label,
-                /*allocTick*/ System.currentTimeMillis(),
-                caller
-        );
+        VramAllocationRecord rec = new VramAllocationRecord(
+                texId, width, height, /*depth*/1, /*mipLevels*/1,
+                internalformat, label,
+                System.currentTimeMillis(), caller);
+        tracker.recordAlloc(rec);
+        VramAllocLogger.logAlloc(rec);
     }
 
     @Unique

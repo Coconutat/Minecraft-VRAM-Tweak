@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.diagnostic.MetricsEngine;
+import test.vram.tweak.eviction.TextureCompressor;
+import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -173,6 +175,27 @@ public class ClothConfigFactory {
                     .setTooltip(Component.translatable("vramtweak.gui.option.experimental.pinnedMemoryMinSize.tooltip"))
                     .setSaveConsumer(v -> cfg.experimental.pinnedMemoryMinSize = v)
                     .build());
+
+            vram.addEntry(eb.startBooleanToggle(
+                            Component.translatable("vramtweak.gui.option.experimental.textureEviction"),
+                            cfg.experimental.textureEviction)
+                    .setDefaultValue(false)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.textureEviction.tooltip"))
+                    .setSaveConsumer(v -> {
+                        cfg.experimental.textureEviction = v;
+                        if (v) VramEvictionManager.getInstance().activate();
+                        else VramEvictionManager.getInstance().deactivate();
+                    })
+                    .build());
+
+            vram.addEntry(eb.startIntSlider(
+                            Component.translatable("vramtweak.gui.option.experimental.evictionThresholdPercent"),
+                            cfg.experimental.evictionThresholdPercent, 50, 95)
+                    .setDefaultValue(80)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.experimental.evictionThresholdPercent.tooltip"))
+                    .setSaveConsumer(v -> cfg.experimental.evictionThresholdPercent = v)
+                    .build());
+
         }
 
         // ================================================================
@@ -293,6 +316,18 @@ public class ClothConfigFactory {
                         cfg.hud.showAllocBreakdown)
                 .setDefaultValue(false)
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showEviction"),
+                        cfg.hud.showEviction)
+                .setDefaultValue(false)
+                .setSaveConsumer(v -> cfg.hud.showEviction = v)
+                .build());
+        hud.addEntry(eb.startBooleanToggle(
+                        Component.translatable("vramtweak.gui.option.showCompression"),
+                        cfg.hud.showCompression)
+                .setDefaultValue(false)
+                .setSaveConsumer(v -> cfg.hud.showCompression = v)
                 .build());
 
         // -- ⚙️ 高级 --

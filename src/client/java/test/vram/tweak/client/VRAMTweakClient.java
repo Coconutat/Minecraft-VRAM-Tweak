@@ -8,6 +8,8 @@ import test.vram.tweak.VRAMTweak;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.command.VramTweakCommand;
 import test.vram.tweak.config.VRAMConfig;
+import test.vram.tweak.eviction.TextureCompressor;
+import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.vram.VRAMGovernor;
 
 public class VRAMTweakClient implements ClientModInitializer {
@@ -23,6 +25,14 @@ public class VRAMTweakClient implements ClientModInitializer {
         if (cfg.diagnostic.allocTracker) {
             VramAllocationTracker.getInstance().activate();
         }
+
+        // Texture Eviction: activate if experimental and enabled
+        if (cfg.showExperimental && cfg.experimental.textureEviction) {
+            VramEvictionManager.getInstance().activate();
+        }
+
+        // RGB5A1 Compression: activate if enabled (no experimental gate)
+        TextureCompressor.setEnabled(cfg.texture.rgb5a1Conversion);
 
         VRAMGovernor.initialize();
 

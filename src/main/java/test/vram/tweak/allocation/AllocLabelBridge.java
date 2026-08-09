@@ -24,4 +24,9 @@ public final class AllocLabelBridge {
         PENDING.remove();
         return label;
     }
+
+    /** Peek at the pending label without consuming it. Returns null if none set. */
+    public static String peek() {
+        return PENDING.get();
+    }
 }

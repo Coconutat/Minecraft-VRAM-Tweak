@@ -134,6 +134,9 @@ public class VRAMConfig {
 
         @SerializedName("maxAtlasSize")
         public int maxAtlasSize = 4096;
+
+        @SerializedName("rgb5a1Conversion")
+        public boolean rgb5a1Conversion = false;
     }
 
     // ---- Diagnostic section ----
@@ -213,6 +216,12 @@ public class VRAMConfig {
 
         @SerializedName("showAllocBreakdown")
         public boolean showAllocBreakdown = false;
+
+        @SerializedName("showEviction")
+        public boolean showEviction = false;
+
+        @SerializedName("showCompression")
+        public boolean showCompression = false;
     }
 
     // ---- Governor section ----
@@ -239,6 +248,18 @@ public class VRAMConfig {
 
         @SerializedName("pinnedMemoryMinSize")
         public int pinnedMemoryMinSize = 1024; // minimum texture size (px) to use pinned PBO
+
+        // ---- Texture Eviction (VRAM→RAM swap) ----
+
+        @SerializedName("textureEviction")
+        public boolean textureEviction = false;
+
+        @SerializedName("evictionThresholdPercent")
+        public int evictionThresholdPercent = 80;
+
+        @SerializedName("evictionTargetPercent")
+        public int evictionTargetPercent = 60;
+
     }
 
 }

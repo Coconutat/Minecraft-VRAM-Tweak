@@ -1,12 +1,6 @@
 package test.vram.tweak.client.gpu;
 
-import java.nio.ByteBuffer;
-
-import org.lwjgl.opengl.AMDPinnedMemory;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL21;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,16 +9,12 @@ import org.slf4j.LoggerFactory;
  * directly as GPU buffer storage, skipping the driver copy.
  *
  * Use case: reduce CPU→GPU transfer latency for large texture atlases
- * and chunk geometry buffers.
- *
- * Usage:
- *   1. Check isAvailable()
- *   2. Allocate a pinned PBO with createPinnedPBO(size, data)
- *   3. Bind it as GL_PIXEL_UNPACK_BUFFER for zero-copy texture upload
+ * and chunk geometry buffers. The actual PBO pool lives in
+ * {@link PinnedMemoryPool}; this class only reports availability and
+ * hosts the cross-mixin upload-handled flag.
  */
 public class PinnedMemory {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/pinned");
-    private static final int GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD = 0x9160;
 
     private static boolean available;
     private static boolean checked;
@@ -66,55 +56,22 @@ public class PinnedMemory {
         }
     }
 
-    /**
-     * Create a PBO backed by pinned application memory.
-     * The buffer's memory is directly accessible by the GPU — no driver copy.
-     *
-     * @param size  buffer size in bytes
-     * @param data  optional initial data, or null for uninitialized
-     * @return      the PBO handle (GL name), or -1 on failure
-     */
-    public static int createPinnedPBO(int size, ByteBuffer data) {
-        if (!isAvailable()) return -1;
-        try {
-            int pboId = GL15.glGenBuffers();
-            GL15.glBindBuffer(GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, pboId);
-            if (data != null) {
-                GL15.glBufferData(GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, data, GL15.GL_STREAM_DRAW);
-            } else {
-                GL15.glBufferData(GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, size, GL15.GL_STREAM_DRAW);
-            }
-            // After binding to EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD and calling BufferData,
-            // the buffer can be bound to other targets (e.g. PIXEL_UNPACK_BUFFER) normally.
-            GL15.glBindBuffer(GL_EXTERNAL_VIRTUAL_MEMORY_BUFFER_AMD, 0);
-            return pboId;
-        } catch (Exception e) {
-            LOGGER.warn("[PinnedMemory] Failed to create pinned PBO", e);
-            return -1;
-        }
+    // ---- Cross-mixin "upload already handled" flag ----
+    // Set by MixinGlStateManager_PinnedMemory when it routes an upload through the
+    // PBO pool and cancels the original call; consumed by MixinGlStateManager_Eviction
+    // so it doesn't re-upload the same texture for RGB5A1 compression (avoids the
+    // double-upload when both experimental features are on).
+    private static final ThreadLocal<Boolean> UPLOAD_HANDLED = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    /** Mark the current thread's upload as already handled (pinned PBO path). */
+    public static void markUploadHandled() {
+        UPLOAD_HANDLED.set(Boolean.TRUE);
     }
 
-    /**
-     * Convenience: bind a pinned PBO as PIXEL_UNPACK_BUFFER for texture upload.
-     * After this, glTexSubImage2D(..., 0) reads from the PBO instead of client memory.
-     */
-    public static void bindAsUnpackPBO(int pboId) {
-        GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, pboId);
-    }
-
-    /**
-     * Unbind PIXEL_UNPACK_BUFFER (restore client-memory uploads).
-     */
-    public static void unbindUnpackPBO() {
-        GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
-    }
-
-    /**
-     * Cleanup: delete a pinned PBO.
-     */
-    public static void deletePBO(int pboId) {
-        if (pboId >= 0) {
-            GL15.glDeleteBuffers(pboId);
-        }
+    /** True if the current upload was handled by the pinned PBO path; clears the flag. */
+    public static boolean consumeUploadHandled() {
+        boolean handled = UPLOAD_HANDLED.get();
+        UPLOAD_HANDLED.set(Boolean.FALSE);
+        return handled;
     }
 }

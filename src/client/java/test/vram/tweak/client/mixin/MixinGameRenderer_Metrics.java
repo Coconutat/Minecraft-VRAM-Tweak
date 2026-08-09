@@ -14,6 +14,7 @@ import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VramFrameCounter;
+import test.vram.tweak.eviction.VramEvictionManager;
 import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
 
@@ -50,8 +51,19 @@ public class MixinGameRenderer_Metrics {
                 VramAllocLogger.logSnapshot(summary,
                         MetricsEngine.getVramUsedMB(), MetricsEngine.getVramTotalMB(),
                         snapshotTicks / 20);
+
+                // Level 3: 高水位告警 — 超过预算阈值时输出 TOP5 最大分配
+                long usedMB = MetricsEngine.getVramUsedMB();
+                long totalMB = MetricsEngine.getVramTotalMB();
+                if (totalMB > 0 && usedMB * 100 / totalMB
+                        >= VRAMConfig.getInstance().vram.budgetWarningPercent) {
+                    VramAllocLogger.logHighWater(summary, usedMB, totalMB, 5);
+                }
             }
         }
+
+        // Eviction manager: check VRAM usage and evict if needed
+        VramEvictionManager.getInstance().onFrame();
     }
 
     /**
