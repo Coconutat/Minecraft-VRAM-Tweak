@@ -124,10 +124,5 @@
   "vramtweak.gui.option.showGovernor.tooltip": "显示 VRAM 调速器的自动调整状态与当前渲染距离上限。",
   "vramtweak.gui.option.showGpu": "显示 GPU",
   "vramtweak.gui.option.showGpuClocks": "显示 GPU 频率",
-  "vramtweak.gui.option.rgb5a1Conversion": "RGB5A1 纹理压缩",
-  "vramtweak.gui.option.rgb5a1Conversion.tooltip": "将二进制透明度纹理 (alpha 仅 0 或 255) 的显存占用减半。\n大多数 Minecraft 方块/物品图集符合条件，节省约 50%。\n原位转换 — 不透明纹理无质量损失。\n无需重启，即时开关。",
-  "vramtweak.hud.compression": "§b压缩:",
-  "vramtweak.gui.option.showCompression": "显示压缩统计",
-  "vramtweak.gui.option.showCompression.tooltip": "显示 RGB5A1 压缩统计：转换数、跳过数、节省 KB。",
   "vramtweak.client.registered": "客户端已注册。 /vramtweak stats|dump|hud|benchmark"
 }

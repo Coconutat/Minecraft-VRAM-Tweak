@@ -128,9 +128,6 @@ public class VRAMConfig {
 
         @SerializedName("maxAtlasSize")
         public int maxAtlasSize = 4096;
-
-        @SerializedName("rgb5a1Conversion")
-        public boolean rgb5a1Conversion = false;
     }
 
     // ---- Diagnostic section ----
@@ -210,9 +207,6 @@ public class VRAMConfig {
 
         @SerializedName("showAllocBreakdown")
         public boolean showAllocBreakdown = false;
-
-        @SerializedName("showCompression")
-        public boolean showCompression = false;
     }
 
     // ---- Governor section ----

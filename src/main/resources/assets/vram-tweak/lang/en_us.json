@@ -124,10 +124,5 @@
   "vramtweak.gui.option.showGovernor.tooltip": "Shows VRAM governor auto-adjust status and current render distance cap.",
   "vramtweak.gui.option.showGpu": "Show GPU",
   "vramtweak.gui.option.showGpuClocks": "Show GPU Clocks",
-  "vramtweak.gui.option.rgb5a1Conversion": "RGB5A1 Texture Compression",
-  "vramtweak.gui.option.rgb5a1Conversion.tooltip": "Halves VRAM usage for textures with binary alpha (0 or 255 only).\nMost Minecraft block/item atlases qualify, saving ~50% per texture.\nIn-place conversion — no quality loss for opaque textures.\nNo restart required — instant on/off.",
-  "vramtweak.hud.compression": "§bComp:",
-  "vramtweak.gui.option.showCompression": "Show Compression Stats",
-  "vramtweak.gui.option.showCompression.tooltip": "Shows RGB5A1 compression stats: converted count, skipped, saved KB.",
   "vramtweak.client.registered": "Client registered. /vramtweak stats|dump|hud|benchmark"
 }

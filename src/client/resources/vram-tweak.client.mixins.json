@@ -20,8 +20,7 @@
 		"MixinGL45C_BufferTracker",
 		"MixinGlBuffer_Init_BufferTracker",
 		"MixinBufferStorageImmutable_BufferTracker",
-		"MixinGlFramebuffer_AllocTracker",
-		"MixinGlCommandEncoder_Compression"
+		"MixinGlFramebuffer_AllocTracker"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -190,16 +190,8 @@ public class VramTweakHud {
             textList.add(Component.literal(label + " " + status + irisTag + " §f(peak " + peakColor + peakPct + "%§f)"));
         }
 
-        // ---- Compression status ----
-        if (hud.showCompression) {
-            int converted = test.vram.tweak.eviction.TextureCompressor.getConvertedCount();
-            int skipped = test.vram.tweak.eviction.TextureCompressor.getSkippedCount();
-            long savedKB = test.vram.tweak.eviction.TextureCompressor.getSavedKB();
-            if (converted > 0 || skipped > 0) {
-                var label = Component.translatable("vramtweak.hud.compression").getString();
-                textList.add(Component.literal(label + " §aConv:" + converted + " §7Skip:" + skipped + " §eSaved:§f" + savedKB + "KB"));
-            }
-        }
+        // ---- Compression status removed 2026-08-09: RGB5A1 atlas compression did not
+        // fire on 26.2 (writeToTexture never sees atlas label/whole-image) — feature deleted.
 
         // One-shot trace: log HUD content after first 5 ticks
         if (!traceOnce && VramFrameCounter.getInstance().getSampleCount() > 20) {

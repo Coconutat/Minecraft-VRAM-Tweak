@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.diagnostic.MetricsEngine;
-import test.vram.tweak.eviction.TextureCompressor;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.vram.VRAMGovernor;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -192,17 +191,6 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.texture.maxAtlasSize = v)
                 .build());
 
-        tex.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.rgb5a1Conversion"),
-                        cfg.texture.rgb5a1Conversion)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.rgb5a1Conversion.tooltip"))
-                .setSaveConsumer(v -> {
-                    cfg.texture.rgb5a1Conversion = v;
-                    TextureCompressor.setEnabled(v);   // instant on/off, no restart
-                })
-                .build());
-
         // ================================================================
         // 3. HUD 叠加层（按语义分组）
         // ================================================================
@@ -282,12 +270,6 @@ public class ClothConfigFactory {
                         cfg.hud.showAllocBreakdown)
                 .setDefaultValue(false)
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
-                .build());
-        hud.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.showCompression"),
-                        cfg.hud.showCompression)
-                .setDefaultValue(false)
-                .setSaveConsumer(v -> cfg.hud.showCompression = v)
                 .build());
 
         // -- ⚙️ 高级 --
