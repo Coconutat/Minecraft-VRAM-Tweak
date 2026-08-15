@@ -190,8 +190,15 @@ public class VramTweakHud {
             textList.add(Component.literal(label + " " + status + irisTag + " §f(peak " + peakColor + peakPct + "%§f)"));
         }
 
-        // ---- Compression status removed 2026-08-09: RGB5A1 atlas compression did not
-        // fire on 26.2 (writeToTexture never sees atlas label/whole-image) — feature deleted.
+        // ---- Voxy memory (optional mod) ----
+        if (hud.showVoxy && test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            long bufMB = test.vram.tweak.gpu.VoxyMemoryProbe.getBufferBytes() / (1024 * 1024);
+            long texMB = test.vram.tweak.gpu.VoxyMemoryProbe.getTextureBytes() / (1024 * 1024);
+            int bufC = test.vram.tweak.gpu.VoxyMemoryProbe.getBufferCount();
+            int texC = test.vram.tweak.gpu.VoxyMemoryProbe.getTextureCount();
+            var label = Component.translatable("vramtweak.hud.voxy").getString();
+            textList.add(Component.literal(label + " §eBuf:" + bufMB + "MB§7(" + bufC + ") §dTex:" + texMB + "MB§7(" + texC + ")"));
+        }
 
         // One-shot trace: log HUD content after first 5 ticks
         if (!traceOnce && VramFrameCounter.getInstance().getSampleCount() > 20) {

@@ -38,6 +38,9 @@ public class VRAMConfig {
     @SerializedName("governor")
     public GovernorSection governor = new GovernorSection();
 
+    @SerializedName("voxy")
+    public VoxySection voxy = new VoxySection();
+
     // ---- singleton ----
 
     private static VRAMConfig instance;
@@ -207,6 +210,9 @@ public class VRAMConfig {
 
         @SerializedName("showAllocBreakdown")
         public boolean showAllocBreakdown = false;
+
+        @SerializedName("showVoxy")
+        public boolean showVoxy = true;
     }
 
     // ---- Governor section ----
@@ -223,6 +229,16 @@ public class VRAMConfig {
 
         @SerializedName("cooldownTicks")
         public int cooldownTicks = 100;
+    }
+
+    // ---- Voxy section (optional mod) ----
+
+    public static class VoxySection {
+        @SerializedName("enabled")
+        public boolean enabled = false;
+
+        @SerializedName("geometryBufferLimitMB")
+        public int geometryBufferLimitMB = 1024;
     }
 
 }

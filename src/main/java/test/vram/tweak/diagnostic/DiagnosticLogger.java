@@ -188,6 +188,14 @@ public class DiagnosticLogger {
             sb.append("Vanilla GlStateManager path\n");
         }
         sb.append("  Hooks: _texImage2D(ByteBuffer) + _texSubImage2D(ByteBuffer) + GlCommandEncoder.writeToTexture (26.2 main path)\n");
+        if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            sb.append("  Voxy: buffers=").append(test.vram.tweak.gpu.VoxyMemoryProbe.getBufferCount())
+                    .append(" (").append(test.vram.tweak.gpu.VoxyMemoryProbe.getBufferBytes() / (1024 * 1024)).append("MB)")
+                    .append(" textures=").append(test.vram.tweak.gpu.VoxyMemoryProbe.getTextureCount())
+                    .append(" (").append(test.vram.tweak.gpu.VoxyMemoryProbe.getTextureBytes() / (1024 * 1024)).append("MB)\n");
+        } else {
+            sb.append("  Voxy: not present\n");
+        }
         sb.append("\n");
 
         // Config
@@ -199,6 +207,7 @@ public class DiagnosticLogger {
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
+        sb.append("  Voxy geometry limit: ").append(c.voxy.enabled ? c.voxy.geometryBufferLimitMB + "MB" : "off").append("\n");
 
         // Write
         try {

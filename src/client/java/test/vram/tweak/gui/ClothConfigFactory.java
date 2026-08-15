@@ -152,6 +152,27 @@ public class ClothConfigFactory {
                 .setSaveConsumer(v -> cfg.governor.cooldownTicks = v)
                 .build());
 
+        // -- Voxy 显存控制（仅安装 Voxy 时显示）--
+        if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            vram.addEntry(eb.startTextDescription(
+                    Component.translatable("vramtweak.gui.section.voxy")).build());
+            vram.addEntry(eb.startBooleanToggle(
+                            Component.translatable("vramtweak.gui.option.voxy.enabled"),
+                            cfg.voxy.enabled)
+                    .setDefaultValue(false)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.voxy.enabled.tooltip"))
+                    .setSaveConsumer(v -> cfg.voxy.enabled = v)
+                    .build());
+            vram.addEntry(eb.startIntField(
+                            Component.translatable("vramtweak.gui.option.voxy.limitMB"),
+                            cfg.voxy.geometryBufferLimitMB)
+                    .setDefaultValue(1024)
+                    .setMin(256).setMax(4096)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.voxy.limitMB.tooltip"))
+                    .setSaveConsumer(v -> cfg.voxy.geometryBufferLimitMB = v)
+                    .build());
+        }
+
         // ================================================================
         // 2. 纹理优化
         // ================================================================
@@ -271,6 +292,16 @@ public class ClothConfigFactory {
                 .setDefaultValue(false)
                 .setSaveConsumer(v -> cfg.hud.showAllocBreakdown = v)
                 .build());
+        // Voxy option only appears when Voxy is installed — auto-hidden otherwise.
+        if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            hud.addEntry(eb.startBooleanToggle(
+                            Component.translatable("vramtweak.gui.option.showVoxy"),
+                            cfg.hud.showVoxy)
+                    .setDefaultValue(true)
+                    .setTooltip(Component.translatable("vramtweak.gui.option.showVoxy.tooltip"))
+                    .setSaveConsumer(v -> cfg.hud.showVoxy = v)
+                    .build());
+        }
 
         // -- ⚙️ 高级 --
         hud.addEntry(eb.startTextDescription(

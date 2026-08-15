@@ -126,6 +126,12 @@ public class VramTweakCommand {
 
         src.sendFeedback(Component.literal(
                 "§b=== VRAM Allocation Report ===§f  §7(" + glUsed + "/" + glTotal + "MB GL, tracked " + trackedMB + "MB)"));
+        if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            src.sendFeedback(Component.literal("§7Voxy: buffers=" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferCount()
+                    + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferBytes() / (1024 * 1024) + "MB)"
+                    + " textures=" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureCount()
+                    + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureBytes() / (1024 * 1024) + "MB)"));
+        }
         src.sendFeedback(Component.literal(
                 "§7Allocs: " + summary.totalAllocations() + " total, " + summary.aliveAllocations() + " alive"));
 

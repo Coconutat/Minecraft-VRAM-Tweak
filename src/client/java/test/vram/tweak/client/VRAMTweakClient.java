@@ -15,6 +15,7 @@ public class VRAMTweakClient implements ClientModInitializer {
     public void onInitializeClient() {
         VRAMConfig.load(FabricLoader.getInstance().getConfigDir());
         var cfg = VRAMConfig.getInstance();
+        test.vram.tweak.gpu.VoxyTweak.applyGeometryLimit();
         VRAMTweak.LOGGER.info("VRAM optimizer. enabled={}, shadowCap={}, downscale={}, budget={}",
                 cfg.vram.enabled, cfg.vram.shadowMapMaxSize,
                 cfg.vram.formatDownscale, cfg.vram.budgetTracking);
