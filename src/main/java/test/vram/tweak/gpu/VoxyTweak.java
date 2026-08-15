@@ -18,15 +18,33 @@ import test.vram.tweak.config.VRAMConfig;
 public final class VoxyTweak {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/voxy");
 
+    /**
+     * 512MB 及以下在重资源包 + Iris 场景下会把 Voxy 几何缓冲压满，
+     * 导致节点层级频繁重建、驱动显存膨胀（实测 8GB 卡直接打满）。
+     * 因此 1024MB 是 vram-tweak 允许的最低安全值。
+     */
+    public static final int MIN_GEOMETRY_LIMIT_MB = 1024;
+
     private VoxyTweak() {}
 
-    /** Called from {@code VRAMTweakClient} at client init, before any world is entered. */
+    /** Called at client init and on config save, before any world is entered. */
     public static void applyGeometryLimit() {
-        if (!VoxyMemoryProbe.isAvailable()) return;
+        if (!VoxyMemoryProbe.isAvailable()) {
+            LOGGER.warn("Voxy geometry limit NOT applied: Voxy memory probe unavailable (class layout changed?)");
+            return;
+        }
         var cfg = VRAMConfig.getInstance().voxy;
         if (cfg.enabled && cfg.geometryBufferLimitMB > 0) {
-            System.setProperty("voxy.geometryBufferSizeOverrideMB", String.valueOf(cfg.geometryBufferLimitMB));
-            LOGGER.info("Voxy geometry buffer limit -> {}MB (effective on next world enter)", cfg.geometryBufferLimitMB);
+            int limitMB = Math.max(cfg.geometryBufferLimitMB, MIN_GEOMETRY_LIMIT_MB);
+            if (limitMB != cfg.geometryBufferLimitMB) {
+                LOGGER.warn("Voxy geometry limit {}MB is unsafe (VRAM blow-up risk); clamped to {}MB.",
+                        cfg.geometryBufferLimitMB, limitMB);
+            }
+            System.setProperty("voxy.geometryBufferSizeOverrideMB", String.valueOf(limitMB));
+            LOGGER.info("Voxy geometry buffer limit -> {}MB (effective on next world enter)", limitMB);
+        } else {
+            System.clearProperty("voxy.geometryBufferSizeOverrideMB");
+            LOGGER.info("Voxy geometry buffer limit disabled (property cleared)");
         }
     }
 }

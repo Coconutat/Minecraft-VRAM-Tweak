@@ -118,7 +118,7 @@
   "vramtweak.gui.option.voxy.enabled": "Limit Voxy Geometry Buffer",
   "vramtweak.gui.option.voxy.enabled.tooltip": "Voxy pre-allocates ~4GB of GPU geometry buffer that stays fully resident in VRAM.\nCaps it via the official 'voxy.geometryBufferSizeOverrideMB' system property.\nSaves up to ~3GB VRAM on 8GB cards; far LOD unloads sooner.\nTakes effect when you enter a world (re-enter the current world to apply).",
   "vramtweak.gui.option.voxy.limitMB": "Geometry Buffer Limit (MB)",
-  "vramtweak.gui.option.voxy.limitMB.tooltip": "Max Voxy geometry buffer in MB (256–4096).\n1024 ≈ 1GB (recommended for 8GB cards).\nOnly applies when the Limit toggle is on.",  "vramtweak.gui.category.experimental": "Experimental (AMD)",
+  "vramtweak.gui.option.voxy.limitMB.tooltip": "Max Voxy geometry buffer in MB (1024–4096).\n1024 ≈ 1GB (recommended for 8GB cards).\nValues below 1024 can thrash Voxy's node hierarchy and balloon VRAM — the mod clamps them to 1024.\nOnly applies when the Limit toggle is on.",  "vramtweak.gui.category.experimental": "Experimental (AMD)",
   "vramtweak.gui.option.showGovernor": "Show Governor Status",
   "vramtweak.gui.option.showGovernor.tooltip": "Shows VRAM governor auto-adjust status and current render distance cap.",
   "vramtweak.gui.option.showGpu": "Show GPU",

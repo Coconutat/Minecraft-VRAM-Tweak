@@ -34,6 +34,7 @@ public class ClothConfigFactory {
                     VRAMConfig.save();
                     VRAMOptimizer.reload();
                     VRAMGovernor.reload();
+                    test.vram.tweak.gpu.VoxyTweak.applyGeometryLimit();
                 });
 
         var eb = builder.entryBuilder();
@@ -142,7 +143,7 @@ public class ClothConfigFactory {
                             Component.translatable("vramtweak.gui.option.voxy.limitMB"),
                             cfg.voxy.geometryBufferLimitMB)
                     .setDefaultValue(1024)
-                    .setMin(256).setMax(4096)
+                    .setMin(1024).setMax(4096)
                     .setTooltip(Component.translatable("vramtweak.gui.option.voxy.limitMB.tooltip"))
                     .setSaveConsumer(v -> cfg.voxy.geometryBufferLimitMB = v)
                     .build());

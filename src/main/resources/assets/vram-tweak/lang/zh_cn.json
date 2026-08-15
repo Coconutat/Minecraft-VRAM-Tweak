@@ -118,7 +118,7 @@
   "vramtweak.gui.option.voxy.enabled": "限制 Voxy 几何缓冲",
   "vramtweak.gui.option.voxy.enabled.tooltip": "Voxy 会预分配约 4GB 的 GPU 几何缓冲并全部常驻显存。\n通过官方系统属性 'voxy.geometryBufferSizeOverrideMB' 设上限。\n8GB 卡可省约 3GB 显存；远处 LOD 会更早卸载。\n进入世界时生效（需重进当前世界应用）。",
   "vramtweak.gui.option.voxy.limitMB": "几何缓冲上限 (MB)",
-  "vramtweak.gui.option.voxy.limitMB.tooltip": "Voxy 几何缓冲上限 (256–4096 MB)。\n1024 ≈ 1GB（8GB 卡推荐）。\n仅在「限制」开关开启时生效。",  "vramtweak.gui.category.experimental": "实验性功能 (AMD)",
+  "vramtweak.gui.option.voxy.limitMB.tooltip": "Voxy 几何缓冲上限 (1024–4096 MB)。\n1024 ≈ 1GB（8GB 卡推荐）。\n低于 1024 会让 Voxy 节点层级频繁重建、显存反而膨胀——本模组会把低于 1024 的值自动钳到 1024。\n仅在「限制」开关开启时生效。",  "vramtweak.gui.category.experimental": "实验性功能 (AMD)",
   "vramtweak.gui.option.showGovernor": "显示调速器状态",
   "vramtweak.gui.option.showGovernor.tooltip": "显示 VRAM 调速器的自动调整状态与当前渲染距离上限。",
   "vramtweak.gui.option.showGpu": "显示 GPU",
