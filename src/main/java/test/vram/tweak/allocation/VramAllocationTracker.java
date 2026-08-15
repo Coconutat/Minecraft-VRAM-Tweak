@@ -53,8 +53,8 @@ public final class VramAllocationTracker {
     private final AtomicLong recentAllocBytes = new AtomicLong(0);
     private final AtomicLong recentFreeBytes = new AtomicLong(0);
 
-    // Map: GL object ID → allocation record (O(1) free lookup)
-    private final ConcurrentHashMap<Integer, VramAllocationRecord> aliveById = new ConcurrentHashMap<>();
+    // Map: (kind, GL object ID) → allocation record (O(1) free lookup)
+    private final ConcurrentHashMap<AllocationKind.Key, VramAllocationRecord> aliveById = new ConcurrentHashMap<>();
 
     // Sliding window of recent allocations for detailed logging (ring-buffer style via deque)
     private static final int MAX_HISTORY = 4096;
@@ -92,8 +92,8 @@ public final class VramAllocationTracker {
         recentAllocCount.incrementAndGet();
         recentAllocBytes.addAndGet(record.getEstimatedBytes());
 
-        // Index by GL object ID for O(1) free lookup
-        aliveById.put(record.getGlObjectId(), record);
+        // Index by (kind, GL object ID) for O(1) free lookup
+        aliveById.put(new AllocationKind.Key(record.getKind(), record.getGlObjectId()), record);
 
         // Add to history sliding window
         history.addLast(record);
@@ -106,19 +106,19 @@ public final class VramAllocationTracker {
      * Get a record by GL object ID without removing from alive map.
      * Returns {@code null} if not found.
      */
-    public VramAllocationRecord getRecord(int glObjectId) {
-        return aliveById.get(glObjectId);
+    public VramAllocationRecord getRecord(AllocationKind kind, int glObjectId) {
+        return aliveById.get(new AllocationKind.Key(kind, glObjectId));
     }
 
     /**
      * Mark an allocation as freed.
-     * <p>Called from B-layer mixin ({@code _deleteTexture} hook).
-     * Only records if tracking is active.</p>
+     * <p>Called from B-layer mixin ({@code _deleteTexture} hook) and
+     * Blaze3D-layer close hooks. Only records if tracking is active.</p>
      */
-    public void recordFree(int glObjectId) {
+    public void recordFree(AllocationKind kind, int glObjectId) {
         if (!active.get()) return;
 
-        VramAllocationRecord record = aliveById.remove(glObjectId);
+        VramAllocationRecord record = aliveById.remove(new AllocationKind.Key(kind, glObjectId));
         if (record != null) {
             record.markFreed(System.currentTimeMillis());
             totalFrees.incrementAndGet();
@@ -128,13 +128,13 @@ public final class VramAllocationTracker {
     }
 
     /**
-     * Update a record's render-target classification with source hint.
+     * Update a texture record's render-target classification with source hint.
      * <p>Called from D-layer mixin (framebuffer attachment hook).</p>
      */
     public void markAsRenderTarget(int glObjectId, AllocationCategory rtCategory, SourceTag rtSource) {
         if (!active.get()) return;
 
-        VramAllocationRecord record = aliveById.get(glObjectId);
+        VramAllocationRecord record = aliveById.get(new AllocationKind.Key(AllocationKind.TEXTURE, glObjectId));
         if (record != null) {
             record.markAsRenderTarget(rtCategory, rtSource);
         }

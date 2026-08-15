@@ -38,7 +38,7 @@ public class MixinGlBuffer_Init_BufferTracker {
             if (buf == null) return;
             int handle = buf.handle();
             if (handle <= 0) return;
-            BufferTrackUtil.trackBuffer(tracker, handle, 0, size);
+            BufferTrackUtil.trackBuffer(tracker, handle, usage, size);
         } catch (Exception ignored) {}
     }
 }

@@ -98,12 +98,6 @@ public class VRAMConfig {
         @SerializedName("enabled")
         public boolean enabled = false;
 
-        @SerializedName("shadowCapEnabled")
-        public boolean shadowCapEnabled = true;
-
-        @SerializedName("shadowMapMaxSize")
-        public int shadowMapMaxSize = 1024;
-
         @SerializedName("formatDownscale")
         public boolean formatDownscale = false;
 
@@ -120,12 +114,6 @@ public class VRAMConfig {
     // ---- Texture section ----
 
     public static class TextureSection {
-        @SerializedName("animationLimit")
-        public boolean animationLimit = false;
-
-        @SerializedName("maxAnimationFrames")
-        public int maxAnimationFrames = 32;
-
         @SerializedName("atlasSizeLimit")
         public boolean atlasSizeLimit = false;
 

@@ -36,10 +36,8 @@ public class VerificationLogger {
     private static Path filePath;
 
     // Counters
-    private static final AtomicInteger shadowCaps = new AtomicInteger();
     private static final AtomicInteger formatDownscales = new AtomicInteger();
     private static final AtomicInteger depthDownscales = new AtomicInteger();
-    private static final AtomicInteger animCaps = new AtomicInteger();
     private static final AtomicInteger governorActions = new AtomicInteger();
     private static final AtomicInteger budgetWarnings = new AtomicInteger();
     private static final AtomicInteger atlasTracked = new AtomicInteger();
@@ -58,8 +56,7 @@ public class VerificationLogger {
             var cfg = VRAMConfig.getInstance().diagnostic;
             Path dir = Path.of(cfg.logDirectory);
             Files.createDirectories(dir);
-            String ts = LocalDateTime.now().format(FMT);
-            filePath = dir.resolve("verify-" + ts + ".log");
+            filePath = dir.resolve("verify-" + VramModLog.getSessionId() + ".log");
             fileWriter = Files.newBufferedWriter(filePath,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             writeHeader();
@@ -76,14 +73,11 @@ public class VerificationLogger {
         writeln("");
         writeln("[Config]");
         writeln("  VRAM: enabled=" + c.vram.enabled
-                + " shadowCap=" + c.vram.shadowMapMaxSize
                 + " fmtDown=" + c.vram.formatDownscale
                 + " depthDown=" + c.vram.depthDownscale
                 + " budgetTracking=" + c.vram.budgetTracking
                 + " budget=" + c.vram.budgetWarningPercent + "%");
-        writeln("  Texture: animLimit=" + c.texture.animationLimit
-                + "(" + c.texture.maxAnimationFrames + ")"
-                + " atlasLimit=" + c.texture.atlasSizeLimit
+        writeln("  Texture: atlasLimit=" + c.texture.atlasSizeLimit
                 + "(" + c.texture.maxAtlasSize + ")");
         writeln("  Governor: enabled=" + c.governor.enabled
                 + " hyst=" + c.governor.hysteresis + "%"
@@ -110,16 +104,6 @@ public class VerificationLogger {
         writeln("[" + LocalDateTime.now().format(TS) + "] " + msg);
     }
 
-    // ---- Shadow map cap ----
-
-    public static void logShadowCap(int origW, int origH, int newW, int newH) {
-        if (!enabled()) return;
-        int n = shadowCaps.incrementAndGet();
-        if (shouldLog(n)) {
-            logBoth(String.format("Shadow cap #%d: %dx%d → %dx%d", n, origW, origH, newW, newH));
-        }
-    }
-
     // ---- Format downscale ----
 
     public static void logFormatDownscale(String source, String from, String to) {
@@ -137,16 +121,6 @@ public class VerificationLogger {
         int n = depthDownscales.incrementAndGet();
         if (shouldLog(n)) {
             logBoth(String.format("Depth downscale #%d: %s → %s", n, from, to));
-        }
-    }
-
-    // ---- Animation frame cap ----
-
-    public static void logAnimationCap(int origFrames, int cappedFrames) {
-        if (!enabled()) return;
-        int n = animCaps.incrementAndGet();
-        if (shouldLog(n)) {
-            logBoth(String.format("Anim cap #%d: %d frames → %d", n, origFrames, cappedFrames));
         }
     }
 
@@ -195,12 +169,11 @@ public class VerificationLogger {
         if (!enabled()) return;
         var c = VRAMConfig.getInstance();
         LOG.info("{} === Config Snapshot ===", PFX);
-        LOG.info("{} VRAM: enabled={} shadowCap={} fmtDown={} depthDown={} budget={}%",
-                PFX, c.vram.enabled, c.vram.shadowMapMaxSize,
+        LOG.info("{} VRAM: enabled={} fmtDown={} depthDown={} budget={}%",
+                PFX, c.vram.enabled,
                 c.vram.formatDownscale, c.vram.depthDownscale, c.vram.budgetWarningPercent);
-        LOG.info("{} Texture: animLimit={}({}) atlasLimit={}({})",
-                PFX, c.texture.animationLimit, c.texture.maxAnimationFrames,
-                c.texture.atlasSizeLimit, c.texture.maxAtlasSize);
+        LOG.info("{} Texture: atlasLimit={}({})",
+                PFX, c.texture.atlasSizeLimit, c.texture.maxAtlasSize);
         LOG.info("{} Governor: enabled={} hyst={}% minDist={} cooldown={}t",
                 PFX, c.governor.enabled, c.governor.hysteresis,
                 c.governor.minDistance, c.governor.cooldownTicks);
@@ -211,11 +184,11 @@ public class VerificationLogger {
 
     public static String getSummary() {
         return String.format(
-                "Shadow caps:%d | Format downscales:%d | Depth downscales:%d | "
-                + "Anim caps:%d | Governor actions:%d | Budget warns:%d | "
+                "Format downscales:%d | Depth downscales:%d | "
+                + "Governor actions:%d | Budget warns:%d | "
                 + "Atlas tracked:%d | Atlas caps:%d",
-                shadowCaps.get(), formatDownscales.get(), depthDownscales.get(),
-                animCaps.get(), governorActions.get(),
+                formatDownscales.get(), depthDownscales.get(),
+                governorActions.get(),
                 budgetWarnings.get(), atlasTracked.get(), atlasCaps.get());
     }
 
@@ -233,10 +206,8 @@ public class VerificationLogger {
     }
 
     public static void reset() {
-        shadowCaps.set(0);
         formatDownscales.set(0);
         depthDownscales.set(0);
-        animCaps.set(0);
         governorActions.set(0);
         budgetWarnings.set(0);
         atlasTracked.set(0);
@@ -250,7 +221,6 @@ public class VerificationLogger {
     public static int getDepthDownscales() { return depthDownscales.get(); }
     public static int getFormatDownscales() { return formatDownscales.get(); }
     public static int getBudgetWarnings() { return budgetWarnings.get(); }
-    public static int getShadowCaps() { return shadowCaps.get(); }
 
     private static boolean shouldLog(int n) {
         return n <= FULL_LOG || n % SAMPLE_EVERY == 0;

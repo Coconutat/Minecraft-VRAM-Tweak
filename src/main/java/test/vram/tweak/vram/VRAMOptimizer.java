@@ -1,19 +1,11 @@
 package test.vram.tweak.vram;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import test.vram.tweak.config.VRAMConfig;
-import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.diagnostic.VerificationLogger;
-import test.vram.tweak.gpu.AmdVramLookup;
-import test.vram.tweak.gpu.GPUDetector;
-import test.vram.tweak.gpu.GPUType;
+import test.vram.tweak.gpu.GlVramProbe;
 
 /**
  * VRAM optimization logic + budget tracking, merged.
@@ -25,71 +17,21 @@ import test.vram.tweak.gpu.GPUType;
  */
 public class VRAMOptimizer {
     private static final Logger LOGGER = LoggerFactory.getLogger("vram-tweak/vram");
-    private static final int GL_TEXTURE_FREE_MEMORY_ATI = 0x87FB;
-    // NVIDIA NVX_gpu_memory_info
-    private static final int GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX = 0x9047;
-    private static final int GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX = 0x9049;
 
     private static boolean enabled;
-    private static boolean shadowCapEnabled;
     private static boolean formatDownscale;
     private static boolean depthDownscale;
-    private static int maxShadowSize;
     private static boolean budgetTracking;
     private static int budgetPercent;
 
     // throttle logs
     private static int downscaleLogs;
-    private static int shadowCapLogs;
     private static int atlasCapLogs;
     private static final int MAX_LOGS = 10;
 
     // budget warning cooldown
     private static boolean overBudget;
     private static int cooldown;
-
-    // GL extension cache
-    private static Set<String> checkedExtensions = new HashSet<>();
-    private static Set<String> availableExtensions = new HashSet<>();
-
-    // AMD calibration: store first freeKB as total VRAM estimate
-    private static long calibrationTotalKB;
-
-    /** Known GPU VRAM sizes (MB) for rounding AMD calibration. */
-    private static final long[] KNOWN_VRAM_SIZES = {
-        1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192,
-        10240, 12288, 16384, 24576, 32768
-    };
-
-    /**
-     * Round an estimated total to the nearest known VRAM size
-     * and apply a safety margin (~2.5 %) for driver overhead.
-     */
-    public static long roundTotalMB(long estimatedMB) {
-        long closest = KNOWN_VRAM_SIZES[0];
-        long minDiff = Long.MAX_VALUE;
-        for (long size : KNOWN_VRAM_SIZES) {
-            long diff = Math.abs(estimatedMB - size);
-            if (diff < minDiff) { minDiff = diff; closest = size; }
-        }
-        // Reserve ~2.5 % for driver overhead so budget tracking is conservative
-        long usable = closest * 975 / 1000;
-        LOGGER.debug("roundTotalMB: {} → closest={} usable={}", estimatedMB, closest, usable);
-        return usable;
-    }
-
-    private static boolean hasGLExt(String ext) {
-        if (checkedExtensions.contains(ext)) return availableExtensions.contains(ext);
-        checkedExtensions.add(ext);
-        int count = GL11.glGetInteger(GL30.GL_NUM_EXTENSIONS);
-        for (int i = 0; i < count; i++) {
-            if (ext.equals(GL30.glGetStringi(GL11.GL_EXTENSIONS, i))) {
-                availableExtensions.add(ext);
-                return true;
-            }
-        }
-        return false;
-    }
 
     public static void initialize() {
         reload();
@@ -99,17 +41,15 @@ public class VRAMOptimizer {
     public static void reload() {
         var cfg = VRAMConfig.getInstance().vram;
         enabled = cfg.enabled;
-        shadowCapEnabled = cfg.shadowCapEnabled;
         formatDownscale = cfg.formatDownscale;
         depthDownscale = cfg.depthDownscale;
-        maxShadowSize = cfg.shadowMapMaxSize;
         budgetTracking = cfg.budgetTracking;
         budgetPercent = cfg.budgetWarningPercent;
 
         LOGGER.info("[TRACE] VRAMOptimizer.reload() called. Thread={}", Thread.currentThread().getName());
         if (enabled) {
-            LOGGER.info("VRAM optimizer ON. shadowCap={}, formatDownscale={}, depthDownscale={}, budget={}%",
-                    maxShadowSize, formatDownscale, depthDownscale, budgetPercent);
+            LOGGER.info("VRAM optimizer ON. formatDownscale={}, depthDownscale={}, budget={}%",
+                    formatDownscale, depthDownscale, budgetPercent);
         } else {
             LOGGER.info("VRAM optimizer OFF. Existing textures unchanged until game restart.");
         }
@@ -119,107 +59,13 @@ public class VRAMOptimizer {
 
     /** Query VRAM free. Returns KB free, or -1 on failure. */
     public static long queryFreeVRAM() {
-        return switch (GPUDetector.getGPU()) {
-            case AMD -> queryFreeVRAM_AMD();
-            case NVIDIA -> queryFreeVRAM_NVIDIA();
-            case INTEL -> queryFreeVRAM_INTEL();
-            default -> -1;
-        };
-    }
-
-    // All internal query methods return KB.
-    private static long queryFreeVRAM_AMD() {
-        try {
-            int[] result = new int[4];
-            GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-            // GL_ATI_meminfo slot 0 = free memory in KB. Sign extension fix.
-            return result[0] & 0xFFFFFFFFL;
-        } catch (Exception e) { return -1; }
-    }
-
-    private static long queryFreeVRAM_NVIDIA() {
-        try {
-            int[] result = new int[1];
-            GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
-            return result[0] & 0xFFFFFFFFL;
-        } catch (Exception e) { return -1; }
-    }
-
-    // Intel also supports GL_ATI_meminfo on many iGPUs; fallback to same path.
-    private static long queryFreeVRAM_INTEL() {
-        // ponytail: try NVX first (modern Intel Arc DG2+), fallback to ATI
-        if (hasGLExt("GL_NVX_gpu_memory_info")) {
-            try {
-                int[] result = new int[1];
-                GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, result);
-                long kb = result[0] & 0xFFFFFFFFL;
-                if (kb > 0) return kb;
-            } catch (Exception ignored) {}
-        }
-        if (hasGLExt("GL_ATI_meminfo")) {
-            try {
-                int[] result = new int[4];
-                GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, result);
-                return result[0] & 0xFFFFFFFFL;
-            } catch (Exception e) { return -1; }
-        }
-        return -1;
+        return GlVramProbe.INSTANCE.freeKB();
     }
 
     /** GPU-aware total VRAM in MB. */
     public static long queryTotalVRAM() {
-        try {
-            return switch (GPUDetector.getGPU()) {
-                case AMD -> {
-                    // Query free VRAM early — used as hint for model lookup disambiguation
-                    long freeKB = queryFreeVRAM_AMD();
-                    long freeMB = freeKB > 0 ? freeKB / 1024 : 0;
-
-                    // 1. Model-based lookup (most accurate)
-                    var info = GPUDetector.getGPUInfo();
-                    if (info != null) {
-                        long knownMB = AmdVramLookup.lookup(info.getAmdArch(), info.getAmdModelName(), freeMB);
-                        if (knownMB > 0) {
-                            // Reserve ~2.5% for driver overhead, same as roundTotalMB
-                            long usable = knownMB * 975 / 1000;
-                            if (calibrationTotalKB == 0) calibrationTotalKB = usable * 1024;
-                            yield usable;
-                        }
-                    }
-                    // 2. Try GL_NVX_gpu_memory_info — many modern AMD drivers expose it
-                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
-                        int[] result = new int[1];
-                        GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
-                        long kb = result[0] & 0xFFFFFFFFL;
-                        if (kb > 0) { calibrationTotalKB = kb; yield kb / 1024; }
-                    }
-                    // 3. Use calibration value rounded to nearest known VRAM size
-                    if (calibrationTotalKB > 0) yield roundTotalMB(calibrationTotalKB / 1024);
-                    // 4. Calibrate now (reuse freeKB from hint query above)
-                    if (freeKB <= 0) freeKB = queryFreeVRAM_AMD();
-                    if (freeKB > 0) { calibrationTotalKB = freeKB; yield roundTotalMB(freeKB / 1024); }
-                    yield 0L;
-                }
-                case NVIDIA -> {
-                    int[] result = new int[1];
-                    GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
-                    long kb = result[0] & 0xFFFFFFFFL;
-                    yield kb / 1024; // KB → MB
-                }
-                case INTEL -> {
-                    if (hasGLExt("GL_NVX_gpu_memory_info")) {
-                        int[] result = new int[1];
-                        GL11.glGetIntegerv(GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX, result);
-                        long kb = result[0] & 0xFFFFFFFFL;
-                        if (kb > 0) yield kb / 1024;
-                    }
-                    // Fallback: estimate from free KB
-                    long freeKB = queryFreeVRAM_INTEL();
-                    yield freeKB > 0 ? Math.max(freeKB, 2048L * 1024) / 1024 : 0L;
-                }
-                default -> 0L;
-            };
-        } catch (Exception e) { return 0; }
+        long totalKB = GlVramProbe.INSTANCE.totalKB();
+        return totalKB > 0 ? totalKB / 1024 : 0;
     }
 
     /** Estimate total VRAM in MB. */
@@ -233,16 +79,6 @@ public class VRAMOptimizer {
 
     /** Called each frame. Logs warnings when VRAM exceeds threshold. */
     public static void onFrameEnd() {
-        // Calibrate total VRAM estimate on first frame (freeKB ≈ total at startup)
-        if (calibrationTotalKB == 0 && GPUDetector.getGPU() == GPUType.AMD) {
-            long freeKB = queryFreeVRAM_AMD();
-            if (freeKB > 0) {
-                calibrationTotalKB = freeKB;
-                long rounded = roundTotalMB(freeKB / 1024);
-                LOGGER.info("VRAM calibration (AMD): free={} MB → rounded total={} MB", freeKB / 1024, rounded);
-            }
-        }
-
         if (!enabled || !budgetTracking) {
             return;
         }
@@ -274,11 +110,10 @@ public class VRAMOptimizer {
 
     // ---- format downscale ----
 
-    /** Downscale 16-bit color formats (RGBA16F → RGBA8). 26.2 GpuFormat has RGBA16F. */
+    /** Downscale RGBA16F → RGBA8 only. Other 16-bit/float formats must not be touched. */
     public static boolean shouldDownscaleFormat(String formatName) {
         if (!enabled || !formatDownscale || formatName == null) return false;
-        if (formatName.startsWith("D") || formatName.startsWith("S")) return false;
-        return formatName.contains("16") || formatName.contains("FLOAT");
+        return "RGBA16F".equals(formatName);
     }
 
     public static void logDownscale(String source, String original) {
@@ -290,22 +125,6 @@ public class VRAMOptimizer {
             LOGGER.debug("Format downscale log limit reached.");
             downscaleLogs++;
         }
-    }
-
-    // ---- shadow map cap (independent of formatDownscale) ----
-
-    public static int capSize(int size) {
-        return Math.min(size, maxShadowSize);
-    }
-
-    /** Only cap if enabled + shadowCapEnabled AND the texture exceeds maxShadowSize AND is square (shadow maps are always square). */
-    public static boolean shouldCap(int width, int height) {
-        return enabled && shadowCapEnabled && width == height && width > maxShadowSize;
-    }
-
-    /** Depth formats — 1.21.11 TextureFormat: DEPTH32 starts with "D". */
-    public static boolean isDepthFormat(String formatName) {
-        return formatName != null && formatName.startsWith("D");
     }
 
     // ---- depth downscale ----
@@ -326,16 +145,6 @@ public class VRAMOptimizer {
         }
     }
 
-    public static void logShadowCap(int origW, int origH, int newW, int newH) {
-        VerificationLogger.logShadowCap(origW, origH, newW, newH);
-        if (shadowCapLogs < MAX_LOGS) {
-            LOGGER.debug("Shadow cap: {}x{} 鈫?{}x{}", origW, origH, newW, newH);
-            shadowCapLogs++;
-        } else if (shadowCapLogs == MAX_LOGS) {
-            LOGGER.debug("Shadow cap log limit reached.");
-            shadowCapLogs++;
-        }
-    }
     // ---- atlas tracking ----
 
     /** Log every atlas texture creation (always, no limit — only ~3-5 per session). */

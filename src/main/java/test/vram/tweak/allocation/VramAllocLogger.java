@@ -29,13 +29,13 @@ public final class VramAllocLogger {
             return;
         }
         VramModLog.debug(String.format(
-                "[AllocTracker] ALLOC  tex=%d  cat=%s  src=%s  %d×%d  mip=%d  fmt=0x%s  est=%s  caller=%s",
+                "[AllocTracker] ALLOC  tex=%d  cat=%s  src=%s  %d×%d  mip=%d  fmt=%s  est=%s  caller=%s",
                 rec.getGlObjectId(),
                 rec.getCategory(),
                 rec.getSource(),
                 rec.getWidth(), rec.getHeight(),
                 rec.getMipLevels(),
-                Integer.toHexString(rec.getGlInternalFormat()).toUpperCase(),
+                rec.getFormatName(),
                 formatBytes(rec.getEstimatedBytes()),
                 rec.getCallerClass()));
     }
@@ -152,7 +152,7 @@ public final class VramAllocLogger {
                     r.getCategory(),
                     r.getSource(),
                     r.getWidth(), r.getHeight(),
-                    "0x" + Integer.toHexString(r.getGlInternalFormat()).toUpperCase(),
+                    r.getFormatName(),
                     VramAllocSummary.toMB(r.getEstimatedBytes()),
                     r.getLifetimeMs() / 1000));
         }

@@ -1,10 +1,7 @@
 package test.vram.tweak.gui;
 
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
-import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
@@ -26,8 +23,6 @@ import test.vram.tweak.vram.VRAMOptimizer;
 public class ClothConfigFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger("vram-tweak/gui");
-    private static final Component NEEDS_RESTART =
-            Component.literal(" ⚠").append(Component.translatable("vramtweak.gui.needsRestart"));
 
     public static Screen create(Screen parent) {
         LOG.info("[GUI] Config screen opened");
@@ -56,26 +51,6 @@ public class ClothConfigFactory {
                 .setDefaultValue(false)
                 .setTooltip(Component.translatable("vramtweak.gui.option.vram.enabled.tooltip"))
                 .setSaveConsumer(v -> { cfg.vram.enabled = v; VRAMOptimizer.reload(); })
-                .build());
-
-        // -- 阴影 --
-        vram.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.shadowCapEnabled"),
-                        cfg.vram.shadowCapEnabled)
-                .setDefaultValue(true)
-                .setTooltip(Component.translatable("vramtweak.gui.option.shadowCapEnabled.tooltip"))
-                .setRequirement(() -> cfg.vram.enabled)
-                .setSaveConsumer(v -> { cfg.vram.shadowCapEnabled = v; })
-                .build());
-
-        vram.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.shadowMapMaxSize"),
-                        cfg.vram.shadowMapMaxSize)
-                .setDefaultValue(1024)
-                .setMin(256).setMax(4096)
-                .setTooltip(Component.translatable("vramtweak.gui.option.shadowMapMaxSize.tooltip"))
-                .setRequirement(() -> cfg.vram.enabled && cfg.vram.shadowCapEnabled)
-                .setSaveConsumer(v -> cfg.vram.shadowMapMaxSize = v)
                 .build());
 
         // -- 格式降精度 --
@@ -177,23 +152,6 @@ public class ClothConfigFactory {
         // 2. 纹理优化
         // ================================================================
         var tex = builder.getOrCreateCategory(Component.translatable("vramtweak.gui.category.texture"));
-
-        tex.addEntry(eb.startBooleanToggle(
-                        Component.translatable("vramtweak.gui.option.animationLimit"),
-                        cfg.texture.animationLimit)
-                .setDefaultValue(false)
-                .setTooltip(Component.translatable("vramtweak.gui.option.animationLimit.tooltip"))
-                .setSaveConsumer(v -> cfg.texture.animationLimit = v)
-                .build());
-
-        tex.addEntry(eb.startIntField(
-                        Component.translatable("vramtweak.gui.option.maxAnimationFrames"),
-                        cfg.texture.maxAnimationFrames)
-                .setDefaultValue(32)
-                .setMin(4).setMax(64)
-                .setTooltip(Component.translatable("vramtweak.gui.option.maxAnimationFrames.tooltip"))
-                .setSaveConsumer(v -> cfg.texture.maxAnimationFrames = v)
-                .build());
 
         tex.addEntry(eb.startBooleanToggle(
                         Component.translatable("vramtweak.gui.option.atlasSizeLimit"),

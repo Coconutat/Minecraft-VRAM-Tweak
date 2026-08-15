@@ -1,10 +1,6 @@
 package test.vram.tweak.allocation;
 
-import org.lwjgl.opengl.GL15C;
-import org.lwjgl.opengl.GL21C;
-import org.lwjgl.opengl.GL30C;
-import org.lwjgl.opengl.GL31C;
-import org.lwjgl.opengl.GL43C;
+import com.mojang.blaze3d.buffers.GpuBuffer;
 
 /**
  * Shared buffer tracking logic used by multiple buffer-tracking mixins.
@@ -15,18 +11,23 @@ public final class BufferTrackUtil {
 
     private BufferTrackUtil() {}
 
-    public static void trackBuffer(VramAllocationTracker tracker, int id, int target, long size) {
-        var existing = tracker.getRecord(id);
+    /**
+     * @param usage GpuBuffer usage bits（见 {@link GpuBuffer}）
+     */
+    public static void trackBuffer(VramAllocationTracker tracker, int id, int usage, long size) {
+        var existing = tracker.getRecord(AllocationKind.BUFFER, id);
         if (existing != null) {
-            tracker.recordFree(id);
+            tracker.recordFree(AllocationKind.BUFFER, id);
         }
 
-        AllocationCategory cat = targetToCategory(target);
+        AllocationCategory cat = usageToCategory(usage);
         VramAllocationRecord rec = new VramAllocationRecord(
+                AllocationKind.BUFFER,
                 id,
                 0, 0, 1,           // width=0, height=0 (buffer, not texture)
-                0,                  // mipLevels
-                0,                  // glInternalFormat (not used for buffers)
+                1,                  // mipLevels (unused, clamped to 1)
+                1.0f,               // bytesPerPixel (overridden below)
+                null,               // formatName (buffer)
                 null,               // label
                 System.currentTimeMillis(),
                 extractCaller()
@@ -37,30 +38,21 @@ public final class BufferTrackUtil {
         VramAllocLogger.logAllocBuf(rec);
     }
 
-    public static int getBufferBinding(int target) {
-        return switch (target) {
-            case GL15C.GL_ARRAY_BUFFER         -> GL15C.glGetInteger(GL15C.GL_ARRAY_BUFFER_BINDING);
-            case GL15C.GL_ELEMENT_ARRAY_BUFFER -> GL15C.glGetInteger(GL15C.GL_ELEMENT_ARRAY_BUFFER_BINDING);
-            case GL31C.GL_UNIFORM_BUFFER       -> GL31C.glGetInteger(GL31C.GL_UNIFORM_BUFFER_BINDING);
-            case GL21C.GL_PIXEL_PACK_BUFFER    -> GL21C.glGetInteger(GL21C.GL_PIXEL_PACK_BUFFER_BINDING);
-            case GL21C.GL_PIXEL_UNPACK_BUFFER  -> GL21C.glGetInteger(GL21C.GL_PIXEL_UNPACK_BUFFER_BINDING);
-            case GL43C.GL_SHADER_STORAGE_BUFFER -> GL43C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING);
-            case GL30C.GL_TRANSFORM_FEEDBACK_BUFFER -> GL30C.glGetInteger(GL30C.GL_TRANSFORM_FEEDBACK_BUFFER_BINDING);
-            default -> 0;
-        };
-    }
-
-    static AllocationCategory targetToCategory(int target) {
-        return switch (target) {
-            case GL15C.GL_ARRAY_BUFFER,
-                 GL15C.GL_ELEMENT_ARRAY_BUFFER,
-                 GL30C.GL_TRANSFORM_FEEDBACK_BUFFER -> AllocationCategory.BUFFER_GEOMETRY;
-            case GL31C.GL_UNIFORM_BUFFER -> AllocationCategory.BUFFER_UNIFORM;
-            case GL21C.GL_PIXEL_PACK_BUFFER,
-                 GL21C.GL_PIXEL_UNPACK_BUFFER -> AllocationCategory.BUFFER_PIXEL;
-            case GL43C.GL_SHADER_STORAGE_BUFFER -> AllocationCategory.BUFFER_STORAGE;
-            default -> classifyByCaller();
-        };
+    static AllocationCategory usageToCategory(int usage) {
+        if (usage == 0) return classifyByCaller();
+        if ((usage & GpuBuffer.USAGE_UNIFORM) != 0 || (usage & GpuBuffer.USAGE_UNIFORM_TEXEL_BUFFER) != 0) {
+            return AllocationCategory.BUFFER_UNIFORM;
+        }
+        if ((usage & GpuBuffer.USAGE_VERTEX) != 0 || (usage & GpuBuffer.USAGE_INDEX) != 0) {
+            return AllocationCategory.BUFFER_GEOMETRY;
+        }
+        if ((usage & GpuBuffer.USAGE_COPY_SRC) != 0 && (usage & GpuBuffer.USAGE_COPY_DST) != 0) {
+            return AllocationCategory.BUFFER_PIXEL;
+        }
+        if ((usage & GpuBuffer.USAGE_COPY_DST) != 0 && (usage & GpuBuffer.USAGE_MAP_WRITE) != 0) {
+            return AllocationCategory.BUFFER_PIXEL;
+        }
+        return classifyByCaller();
     }
 
     static AllocationCategory classifyByCaller() {

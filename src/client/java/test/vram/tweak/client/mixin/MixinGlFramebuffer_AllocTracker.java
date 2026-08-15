@@ -17,23 +17,15 @@ import test.vram.tweak.allocation.VramAllocationTracker;
  * D-layer: marks textures as render-target attachments when they are bound to
  * a framebuffer.
  *
- * <p>This hook fires <em>after</em> the B-layer ({@link MixinGlStateManager_AllocTracker})
- * has already recorded the allocation via {@code _texImage2D}. At that point the
- * category defaults to a texture type; this hook reclassifies the record to the
- * correct render-target category.</p>
+ * <p>Allocation records are created at the Blaze3D layer
+ * ({@code GpuDevice.createTexture}); this hook reclassifies the record when the
+ * texture is attached to a framebuffer.</p>
  *
  * <p><b>Classification rules:</b>
  * <ul>
  *   <li>GL_DEPTH_ATTACHMENT / GL_DEPTH_STENCIL_ATTACHMENT → {@code RENDER_TARGET_DEPTH}</li>
  *   <li>Any other attachment → {@code RENDER_TARGET_COLOR}</li>
  * </ul></p>
- *
- * <p>Shadow maps are classified as {@code RENDER_TARGET_SHADOW} when the source tag
- * matches shadow patterns. If the source tag is not yet set at attachment time,
- * this hook marks as {@code RENDER_TARGET_DEPTH} which is a reasonable default
- * for shadow maps.</p>
- *
- * @see MixinGlStateManager_AllocTracker B-layer
  */
 @Mixin(GlStateManager.class)
 public class MixinGlFramebuffer_AllocTracker {
@@ -58,7 +50,10 @@ public class MixinGlFramebuffer_AllocTracker {
         try {
             AllocationCategory rtCategory = classifyAttachment(attachment);
             if (rtCategory != null) {
-                tracker.markAsRenderTarget(texture, rtCategory, SourceTag.IRIS_GBUFFER);
+                // P0 fix: never label every attachment as Iris. The record keeps its
+                // label-derived source; unknown sources stay unknown. Stack-based
+                // Iris/vanilla discrimination lands in P1.
+                tracker.markAsRenderTarget(texture, rtCategory, SourceTag.UNKNOWN_SOURCE);
             }
         } catch (Exception ignored) {
             // Don't crash the game

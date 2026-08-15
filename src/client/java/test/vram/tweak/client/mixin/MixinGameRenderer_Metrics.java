@@ -68,16 +68,15 @@ public class MixinGameRenderer_Metrics {
      * to send a render-distance packet — which rarely happens in normal gameplay.
      */
     private static void applyGovernorCap() {
-        int newRadius = VRAMGovernor.consumeCapChange();
-        if (newRadius < 2) return;  // 2 is absolute minimum (calculateStorageRange floors at 2)
-
         try {
             var level = Minecraft.getInstance().level;
             if (level == null) return;
             var source = level.getChunkSource();
-            if (source instanceof ClientChunkCache cache) {
-                cache.updateViewRadius(newRadius);
-            }
+            if (!(source instanceof ClientChunkCache cache)) return;
+
+            int newRadius = VRAMGovernor.consumeCapChange();
+            if (newRadius < 2) return;  // 2 is absolute minimum (calculateStorageRange floors at 2)
+            cache.updateViewRadius(newRadius);
         } catch (Exception e) {
             // Safe — this runs every frame, don't spam
         }

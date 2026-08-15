@@ -138,13 +138,17 @@ public class VRAMGovernor {
                         usedMB, totalMB, currentCap);
             } else {
                 // Fully back at the user's setting: lift the cap.
+                // Keep userRenderDistance — consumeCapChange() needs it to apply the
+                // final restore; it will be refreshed by the next read-side call.
+                int prevCap = currentCap;
+                int restoreTarget = userRenderDistance > 0 ? userRenderDistance : currentCap;
                 underPressure = false;
                 currentCap = -1;
-                userRenderDistance = -1;
                 capDirty = true;
                 lastAdjustAt = System.currentTimeMillis();
-                VerificationLogger.logGovernorAction("restore", currentCap, -1, usedMB, totalMB);
-                LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored.", usedMB, totalMB);
+                VerificationLogger.logGovernorAction("restore", prevCap, restoreTarget, usedMB, totalMB);
+                LOGGER.info("VRAM recovered: {}MB/{}MB. Render distance restored to {}.",
+                        usedMB, totalMB, restoreTarget);
             }
         }
     }
@@ -156,8 +160,14 @@ public class VRAMGovernor {
      */
     public static int capRenderDistance(int original) {
         if (!enabled) return original;
-        userRenderDistance = original; // always track user's setting
-        if (currentCap < 0) return original; // no active cap
+        // Track the user's setting only while NOT capping. Once a cap is active,
+        // the capped value is fed back through updateViewRadius → calculateStorageRange;
+        // overwriting userRenderDistance there would make restore return to the cap
+        // instead of the user's real setting.
+        if (currentCap < 0) {
+            userRenderDistance = original;
+            return original;
+        }
         return Math.min(original, currentCap);
     }
 

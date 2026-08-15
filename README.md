@@ -2,7 +2,7 @@
 
 **English** | [中文](README_CN.md)
 
-> Minecraft 26.2 Fabric VRAM optimization mod — diagnose and reduce GPU VRAM usage.
+> Minecraft 26.2 Fabric forensics-driven VRAM optimization mod — diagnose where VRAM goes, then reduce what is proven safe to reduce.
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
@@ -17,21 +17,19 @@
 
 ## Overview
 
-VRAM Tweak intercepts GPU texture creation at the OpenGL level via Mixin injection. It caps oversized texture atlases, downscales depth buffers, limits animation frames, and dynamically adjusts render distance — **without modifying Sodium, Iris, or any third-party mod**. Also includes a built-in VRAM forensics tool (AllocTracker) that intercepts every GPU allocation and classifies it by category and source.
+VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via Mixin injection. It caps oversized texture atlases, downscales depth buffers, and dynamically adjusts render distance under VRAM pressure — **without modifying Sodium, Iris, or any third-party mod**. Its core is the built-in VRAM forensics tool (AllocTracker), which classifies every tracked GPU allocation by category and source.
 
 ### Active Features
 
 | Feature | How | Status |
 |---------|-----|--------|
-| **Atlas size cap** | Clamp texture atlas W/H ≤ `maxAtlasSize` | ✅ Stable |
+| **AllocTracker** | Track GPU alloc/free, categorize by type & source | ✅ Core |
 | **Depth downscale** | D32_FLOAT → D16_UNORM | ✅ Verified |
-| **Shadow map cap** | Limit shadow map resolution | ✅ Stable |
-| **Animation frame limit** | Truncate animated texture frame count | ✅ Stable |
+| **Atlas size cap** | Clamp texture atlas W/H ≤ `maxAtlasSize` | ⚠️ Verified, some shaders may shade a block face dark |
 | **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ✅ Stable |
+| **Budget tracking** | Periodic VRAM polling + configurable alert | ✅ Stable |
 
 > ⚠️ **The render distance reduction is temporary and dynamic.** Your settings menu still shows the original value you configured. To see the actual effective render distance, check the HUD overlay — it displays the governor's current cap in real time. When VRAM recovers, the cap lifts automatically.
-| **Budget tracking** | Per-frame VRAM polling + configurable alert | ✅ Stable |
-| **AllocTracker** | Intercept every GPU alloc/free, categorize by type & source | ✅ Stable |
 
 ### Conditional Features
 
@@ -130,15 +128,12 @@ Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%
 ```jsonc
 {
   "version": 1,
-  "showExperimental": false,
   "vram": {
     "enabled": true,
-    "shadowCapEnabled": true, "shadowMapMaxSize": 1024,
     "formatDownscale": false, "depthDownscale": false,
     "budgetTracking": false, "budgetWarningPercent": 80
   },
   "texture": {
-    "animationLimit": false, "maxAnimationFrames": 32,
     "atlasSizeLimit": false, "maxAtlasSize": 4096
   },
   "diagnostic": {
@@ -147,8 +142,7 @@ Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%
     "logDirectory": "logs/vram-tweak"
   },
   "hud": { "enabled": true, "offsetX": 4, "offsetY": 4 },
-  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 },
-  "experimental": { "pinnedMemory": false, "pinnedMemoryMinSize": 1024 }
+  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 }
 }
 ```
 
@@ -169,15 +163,14 @@ Requires JDK 25+.
 
 ```
 Mixin Layer
-├── MixinGpuDevice_VRAMOptimize      → createTexture() format/size cap
+├── MixinGpuDevice_VRAMOptimize      → createTexture() atlas cap / format downscale
 ├── MixinGameRenderer_Metrics        → per-frame stats + alloc snapshots + governor trigger
-├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures
-├── MixinGlFramebuffer_AllocTracker  → framebuffer attachment tracking
-├── MixinSpriteContents_Animation    → animation frame truncation
+├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures tracking
+├── MixinGlFramebuffer_AllocTracker  → framebuffer attachment classification
+├── MixinGlBuffer_Init_BufferTracker / MixinBufferStorageImmutable_BufferTracker → buffer tracking (Blaze3D layer)
 ├── MixinOptions_RenderDistance      → governor: ClientChunkCache cap
 ├── MixinOptions_EffectiveRenderDistance → governor: Options read-side cap
 ├── MixinGui_Hud / MixinMinecraft_Hud → HUD overlay
-├── MixinGlStateManager_PinnedMemory → AMD pinned memory (experimental)
 └── MixinGameRenderer_PerfMonitor    → AMD GPU clocks
 
 Core (src/main)
@@ -187,7 +180,7 @@ Core (src/main)
 
 Client (src/client)
 ├── VramTweakHud / VramTweakCommand / ClothConfigFactory / ModMenuIntegration
-└── AMDPerfMonitor / PinnedMemory + PBO pool
+└── AMDPerfMonitor
 ```
 
 ---

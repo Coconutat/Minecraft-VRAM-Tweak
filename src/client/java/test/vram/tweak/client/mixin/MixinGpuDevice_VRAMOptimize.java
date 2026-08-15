@@ -1,6 +1,7 @@
 package test.vram.tweak.client.mixin;
 
 import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.textures.GpuTexture;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,7 +13,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.function.Supplier;
 
 import test.vram.tweak.VRAMTweak;
-import test.vram.tweak.allocation.AllocLabelBridge;
+import test.vram.tweak.allocation.AllocationKind;
+import test.vram.tweak.allocation.TextureFormatBytes;
+import test.vram.tweak.allocation.VramAllocationRecord;
+import test.vram.tweak.allocation.VramAllocationTracker;
+import test.vram.tweak.allocation.VramAllocLogger;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
 import test.vram.tweak.vram.VRAMOptimizer;
@@ -32,6 +37,7 @@ public class MixinGpuDevice_VRAMOptimize {
     private static final ThreadLocal<Integer> STORED_WIDTH = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> IS_ATLAS = new ThreadLocal<>();
     private static final ThreadLocal<String> ATLAS_NAME = new ThreadLocal<>();
+    private static final ThreadLocal<String> LAST_LABEL = new ThreadLocal<>();
 
     // Format trace (diagnostic: log first N distinct GpuFormats seen)
     private static final java.util.Set<String> FORMATS_SEEN = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
@@ -47,11 +53,12 @@ public class MixinGpuDevice_VRAMOptimize {
     private Supplier<String> captureLabel(Supplier<String> label) {
         try {
             String name = label.get();
-            AllocLabelBridge.set(name); // bridge to B-layer AllocTracker
+            LAST_LABEL.set(name);
             boolean isAtlas = name != null && name.contains("atlas");
             IS_ATLAS.set(isAtlas);
             ATLAS_NAME.set(isAtlas ? name : null);
         } catch (Exception e) {
+            LAST_LABEL.set(null);
             IS_ATLAS.set(false);
             ATLAS_NAME.set(null);
         }
@@ -147,33 +154,70 @@ public class MixinGpuDevice_VRAMOptimize {
                 }
                 return h;
             }
-            Integer sw = STORED_WIDTH.get();
-            String fmt = CURRENT_FORMAT.get();
-            if (sw != null && VRAMOptimizer.isDepthFormat(fmt) && VRAMOptimizer.shouldCap(sw, h)) {
-                int capped = VRAMOptimizer.capSize(h);
-                VRAMOptimizer.logShadowCap(sw, h, sw, capped);
-                VRAMTweak.LOGGER.info("[ShadowCaps] shadow map {}x{} -> {} (enabled={}, maxShadowSize={})",
-                        sw, h, capped, VRAMOptimizer.isEnabled(), VRAMConfig.getInstance().vram.shadowMapMaxSize);
-                return capped;
-            }
-            if (sw != null && VRAMOptimizer.isDepthFormat(fmt) && !VRAMOptimizer.shouldCap(sw, h)) {
-                VRAMTweak.LOGGER.debug("[ShadowCaps] depth texture {}x{} no cap (enabled={} maxShadowSize={})",
-                        sw, h, VRAMOptimizer.isEnabled(), VRAMConfig.getInstance().vram.shadowMapMaxSize);
-            }
         } catch (Exception e) {
             VRAMTweak.LOGGER.error("capHeight failed", e);
         }
         return h;
     }
 
-    // ---- Metrics ----
+    // ---- Texture allocation tracking (Blaze3D layer) ----
 
     @Inject(method = "createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)"
             + "Lcom/mojang/blaze3d/textures/GpuTexture;",
         at = @At("RETURN"))
-    private void onTextureCreated(Supplier<String> label, int usage, GpuFormat format,
+    private void onTextureCreatedSupplier(Supplier<String> label, int usage, GpuFormat format,
+            int width, int height, int depth, int mipLevels,
+            CallbackInfoReturnable<GpuTexture> cir) {
+        recordTexture(LAST_LABEL.get(), format, width, height, depth, mipLevels, cir);
+    }
+
+    @Inject(method = "createTexture(Ljava/lang/String;ILcom/mojang/blaze3d/GpuFormat;IIII)"
+            + "Lcom/mojang/blaze3d/textures/GpuTexture;",
+        at = @At("RETURN"))
+    private void onTextureCreatedString(String label, int usage, GpuFormat format,
+            int width, int height, int depth, int mipLevels,
+            CallbackInfoReturnable<GpuTexture> cir) {
+        recordTexture(label, format, width, height, depth, mipLevels, cir);
+    }
+
+    private static void recordTexture(String label, GpuFormat format,
             int width, int height, int depth, int mipLevels,
             CallbackInfoReturnable<GpuTexture> cir) {
         MetricsEngine.textureAllocations.incrementAndGet();
+
+        var tracker = VramAllocationTracker.getInstance();
+        if (!tracker.isActive()) return;
+        try {
+            GpuTexture texture = cir.getReturnValue();
+            if (texture == null) return;
+            int glId = texture instanceof GlTexture gl ? gl.glId() : 0;
+
+            VramAllocationRecord rec = new VramAllocationRecord(
+                    AllocationKind.TEXTURE,
+                    glId,
+                    width, height, depth,
+                    mipLevels,
+                    TextureFormatBytes.lookupByName(format.name()),
+                    format.name(),
+                    label,
+                    System.currentTimeMillis(),
+                    extractCaller());
+            tracker.recordAlloc(rec);
+            VramAllocLogger.logAlloc(rec);
+        } catch (Exception e) {
+            VRAMTweak.LOGGER.error("recordTexture failed", e);
+        }
+    }
+
+    private static String extractCaller() {
+        var stack = Thread.currentThread().getStackTrace();
+        for (int i = 4; i < Math.min(stack.length, 12); i++) {
+            String cn = stack[i].getClassName();
+            if (!cn.contains("test.vram.tweak") && !cn.contains("GpuDevice")) {
+                int dot = cn.lastIndexOf('.');
+                return dot >= 0 ? cn.substring(dot + 1) : cn;
+            }
+        }
+        return "unknown";
     }
 }

@@ -30,6 +30,8 @@ import test.vram.tweak.VRAMTweak;
 public final class VramModLog {
 
     private static final DateTimeFormatter TS_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter SESSION_FMT = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private static final String SESSION_ID = LocalDateTime.now().format(SESSION_FMT);
     private static final Path LOG_FILE;
     private static final long MAX_SIZE = 5 * 1024 * 1024; // 5 MB rotation
     private static BufferedWriter writer;
@@ -44,6 +46,11 @@ public final class VramModLog {
             enabled = false;
             VRAMTweak.LOGGER.error("VramModLog: cannot create log directory {}", logDir, e);
         }
+    }
+
+    /** 本次启动的会话 ID（yyyyMMdd-HHmmss），供一次性报告文件命名。 */
+    public static String getSessionId() {
+        return SESSION_ID;
     }
 
     private VramModLog() { /* utility */ }

@@ -21,7 +21,6 @@ import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.gpu.AmdVramLookup;
 import test.vram.tweak.gpu.GPUDetector;
 import test.vram.tweak.gpu.GPUType;
-import test.vram.tweak.gpu.GPUDetector;
 
 /**
  * One-shot startup diagnostic. Writes a detailed, AI-analyzable report to
@@ -203,7 +202,6 @@ public class DiagnosticLogger {
         var c = VRAMConfig.getInstance();
         var vram = c.vram;
         sb.append("  VRAM enabled: ").append(vram.enabled).append("\n");
-        sb.append("  Shadow cap: ").append(vram.shadowMapMaxSize).append("\n");
         sb.append("  Format downscale: ").append(vram.formatDownscale).append("\n");
         sb.append("  Budget tracking: ").append(vram.budgetTracking).append("\n");
         sb.append("  Budget threshold: ").append(vram.budgetWarningPercent).append("%\n");
@@ -213,7 +211,7 @@ public class DiagnosticLogger {
         try {
             Path dir = Path.of(cfg.logDirectory);
             Files.createDirectories(dir);
-            Path file = dir.resolve("diagnostic-" + LocalDateTime.now().format(FMT) + ".txt");
+            Path file = dir.resolve("diagnostic-" + VramModLog.getSessionId() + ".txt");
             Files.writeString(file, sb.toString(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             LOGGER.info("Diagnostic written: {}", file.toAbsolutePath());
         } catch (IOException e) {

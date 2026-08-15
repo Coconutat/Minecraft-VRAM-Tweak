@@ -2,7 +2,7 @@
 
 [**English**](README.md) | **中文**
 
-> Minecraft 26.2 Fabric 显存优化模组 — 诊断并降低 GPU 显存占用。
+> Minecraft 26.2 Fabric 取证驱动的显存优化模组 — 先诊断显存花在哪，再对经得起验证的项目做优化。
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-26.2-blue)](https://www.minecraft.net)
 [![Fabric](https://img.shields.io/badge/Fabric-0.19.3-yellow)](https://fabricmc.net)
@@ -17,21 +17,19 @@
 
 ## 概述
 
-VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截断超大纹理图集、降低深度缓冲精度、限制动画帧数，并在显存紧张时动态调整渲染距离 — **全程不修改 Sodium、Iris 或任何第三方模组代码**。内置显存溯源工具 (AllocTracker)，可拦截每笔 GPU 分配并按类别和来源分类。
+VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它截断超大纹理图集、降低深度缓冲精度，并在显存紧张时动态调整渲染距离 — **全程不修改 Sodium、Iris 或任何第三方模组代码**。核心是内置显存溯源工具 (AllocTracker)，按类别和来源分类每笔追踪到的 GPU 分配。
 
 ### 活跃功能
 
 | 功能 | 原理 | 状态 |
 |------|------|------|
-| **图集尺寸上限** | 限制纹理图集宽高 ≤ `maxAtlasSize` | ✅ 稳定 |
+| **AllocTracker** | 追踪 GPU 分配/释放，按类型和来源分类 | ✅ 核心 |
 | **深度缓冲降精度** | D32_FLOAT → D16_UNORM | ✅ 已验证 |
-| **阴影贴图上限** | 限制阴影贴图分辨率 | ✅ 稳定 |
-| **动画帧限制** | 截断动画纹理最大帧数 | ✅ 稳定 |
+| **图集尺寸上限** | 限制纹理图集宽高 ≤ `maxAtlasSize` | ⚠️ 已验证；部分光影下方块某一面可能变黑 |
 | **VRAM 调速器** | 显存紧张时自动降低渲染距离，主动执行 | ✅ 稳定 |
+| **预算追踪** | 周期轮询 VRAM 用量 + 可配置告警 | ✅ 稳定 |
 
 > ⚠️ **渲染距离降低是临时的、动态的。** 设置菜单里显示的仍是你配置的原始值。查看实际生效的渲染距离请打开 HUD 叠加层——它会实时显示调速器当前上限。显存恢复后上限自动解除。
-| **预算追踪** | 每帧轮询 VRAM 用量 + 可配置告警 | ✅ 稳定 |
-| **AllocTracker** | 拦截每笔 GPU 分配/释放，按类型和来源分类 | ✅ 稳定 |
 
 ### 条件触发功能
 
@@ -130,15 +128,12 @@ VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截�
 ```jsonc
 {
   "version": 1,
-  "showExperimental": false,
   "vram": {
     "enabled": true,
-    "shadowCapEnabled": true, "shadowMapMaxSize": 1024,
     "formatDownscale": false, "depthDownscale": false,
     "budgetTracking": false, "budgetWarningPercent": 80
   },
   "texture": {
-    "animationLimit": false, "maxAnimationFrames": 32,
     "atlasSizeLimit": false, "maxAtlasSize": 4096
   },
   "diagnostic": {
@@ -147,8 +142,7 @@ VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截�
     "logDirectory": "logs/vram-tweak"
   },
   "hud": { "enabled": true, "offsetX": 4, "offsetY": 4 },
-  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 },
-  "experimental": { "pinnedMemory": false, "pinnedMemoryMinSize": 1024 }
+  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 }
 }
 ```
 
@@ -169,15 +163,14 @@ VRAM Tweak 通过 Mixin 注入在 OpenGL 层面拦截 GPU 纹理创建。它截�
 
 ```
 Mixin 注入层
-├── MixinGpuDevice_VRAMOptimize      → createTexture() 格式/尺寸上限
+├── MixinGpuDevice_VRAMOptimize      → createTexture() 图集截断 / 格式降精度
 ├── MixinGameRenderer_Metrics        → 逐帧统计 + 分配快照 + 调速器触发
-├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures 拦截
-├── MixinGlFramebuffer_AllocTracker  → 帧缓冲附件追踪
-├── MixinSpriteContents_Animation    → 动画帧截断
+├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures 追踪
+├── MixinGlFramebuffer_AllocTracker  → 帧缓冲附件分类
+├── MixinGlBuffer_Init_BufferTracker / MixinBufferStorageImmutable_BufferTracker → 缓冲追踪（Blaze3D 层）
 ├── MixinOptions_RenderDistance      → 调速器: ClientChunkCache 区块加载上限
 ├── MixinOptions_EffectiveRenderDistance → 调速器: Options 读取侧上限
 ├── MixinGui_Hud / MixinMinecraft_Hud → HUD 叠加层
-├── MixinGlStateManager_PinnedMemory → AMD 钉住内存（实验性）
 └── MixinGameRenderer_PerfMonitor    → AMD GPU 频率监控
 
 核心模块 (src/main)
@@ -187,7 +180,7 @@ Mixin 注入层
 
 客户端模块 (src/client)
 ├── VramTweakHud / VramTweakCommand / ClothConfigFactory / ModMenuIntegration
-└── AMDPerfMonitor / PinnedMemory + PBO 池
+└── AMDPerfMonitor
 ```
 
 ---

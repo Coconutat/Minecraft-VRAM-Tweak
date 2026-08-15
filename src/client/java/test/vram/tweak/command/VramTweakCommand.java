@@ -87,7 +87,8 @@ public class VramTweakCommand {
         try {
             var dir = java.nio.file.Path.of(cfg.logDirectory);
             java.nio.file.Files.createDirectories(dir);
-            var file = dir.resolve("metrics-dump-" + System.currentTimeMillis() + ".csv");
+            var file = dir.resolve("metrics-" + test.vram.tweak.diagnostic.VramModLog.getSessionId()
+                    + "-" + System.currentTimeMillis() + ".csv");
             java.nio.file.Files.writeString(file, sb.toString());
             src.sendFeedback(Component.translatable("vramtweak.command.dump.success", file.toAbsolutePath()));
         } catch (Exception e) {
@@ -123,9 +124,12 @@ public class VramTweakCommand {
         long glUsed = MetricsEngine.getVramUsedMB();
         long glTotal = MetricsEngine.getVramTotalMB();
         long trackedMB = summary.aliveEstimatedBytes() / (1024 * 1024);
+        long untrackedMB = Math.max(0, glUsed - trackedMB);
 
         src.sendFeedback(Component.literal(
                 "§b=== VRAM Allocation Report ===§f  §7(" + glUsed + "/" + glTotal + "MB GL, tracked " + trackedMB + "MB)"));
+        src.sendFeedback(Component.literal(
+                "§7未追踪差额（GL − 追踪）: " + untrackedMB + "MB  （驱动缓存/缓冲池/未覆盖路径）"));
         if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
             src.sendFeedback(Component.literal("§7Voxy: buffers=" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferCount()
                     + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferBytes() / (1024 * 1024) + "MB)"

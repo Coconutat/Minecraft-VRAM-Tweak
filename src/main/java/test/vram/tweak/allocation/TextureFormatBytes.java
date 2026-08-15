@@ -23,6 +23,23 @@ public final class TextureFormatBytes {
      * @param glInternalFormat OpenGL internal format enum value
      * @return estimated bytes per pixel, minimum 1
      */
+    /**
+     * Blaze3D GpuFormat 名称 → 每像素字节数。未知格式保守按 4 bpp 计。
+     */
+    public static float lookupByName(String formatName) {
+        if (formatName == null || formatName.isEmpty()) return 4.0f;
+        return switch (formatName) {
+            case "R8_UNORM", "R8" -> 1.0f;
+            case "R16_UNORM", "R16", "R16F", "RG8_UNORM", "RG8", "D16_UNORM" -> 2.0f;
+            case "RGB8_UNORM", "RGB8" -> 3.0f;
+            case "RGBA8_UNORM", "RGBA8", "R32F", "R32_UINT", "R32_SINT",
+                 "RG16_UNORM", "RG16", "RG16F", "D32_FLOAT", "D24_UNORM_S8_UINT" -> 4.0f;
+            case "RGBA16_UNORM", "RGBA16", "RGBA16F", "RG32F", "RG32_UINT", "RG32_SINT" -> 8.0f;
+            case "RGBA32F", "RGBA32_UINT", "RGBA32_SINT" -> 16.0f;
+            default -> 4.0f; // conservative fallback (RGBA8 equivalent)
+        };
+    }
+
     public static float lookup(int glInternalFormat) {
         return switch (glInternalFormat) {
             // --- 1 byte/pixel ---

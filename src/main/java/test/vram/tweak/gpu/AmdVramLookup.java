@@ -14,6 +14,8 @@ public class AmdVramLookup {
     // Map from model number prefix → VRAM size in MB
     // Key examples: "9070" matches "RX 9070 XT", "RX 9070"
     private static final Map<Integer, long[]> VRAM_MAP = new HashMap<>();
+    // Radeon Pro model name → VRAM size in MB
+    private static final Map<String, Long> PRO_VRAM = new HashMap<>();
 
     static {
         // ---- RDNA 4 (Navi 48) ----
@@ -62,8 +64,7 @@ public class AmdVramLookup {
     }
 
     private static void vramPro(String model, long sizeMB) {
-        // Pro models stored with negated key to distinguish from RX series
-        VRAM_MAP.put(-model.hashCode(), new long[]{sizeMB});
+        PRO_VRAM.put(model, sizeMB);
     }
 
     /**
@@ -93,11 +94,9 @@ public class AmdVramLookup {
 
         // Check Pro series first
         if (upper.contains("PRO") || upper.contains("W")) {
-            for (var entry : VRAM_MAP.entrySet()) {
-                if (entry.getKey() < 0) { // Pro models
-                    if (upper.contains(entry.getKey().toString().substring(1))) {
-                        return entry.getValue()[0];
-                    }
+            for (var entry : PRO_VRAM.entrySet()) {
+                if (upper.contains(entry.getKey())) {
+                    return entry.getValue();
                 }
             }
         }

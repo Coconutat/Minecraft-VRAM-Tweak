@@ -1,17 +1,16 @@
 package test.vram.tweak.allocation;
 
 /**
- * A single GPU texture allocation record with lifecycle tracking.
+ * A single GPU allocation record with lifecycle tracking.
  *
- * <p>Created when a texture is allocated (via {@code _texImage2D} hook),
- * updated when it is deleted (via {@code _deleteTexture} hook).</p>
- *
- * <p>All sizes in estimated bytes — see {@link TextureFormatBytes} for the
- * format-to-bytes-per-pixel mapping used for estimation.</p>
+ * <p>Created at Blaze3D-layer allocation points (GpuDevice.createTexture /
+ * BufferStorage.createBuffer) and marked freed at the matching close/destroy
+ * points. All sizes are estimated bytes — see {@link TextureFormatBytes}.</p>
  */
 public final class VramAllocationRecord {
 
-    // ---- GL identity ----
+    // ---- Identity ----
+    private final AllocationKind kind;
     private final int glObjectId;
 
     // ---- Dimensions ----
@@ -19,7 +18,7 @@ public final class VramAllocationRecord {
     private final int height;
     private final int depth;
     private final int mipLevels;
-    private final int glInternalFormat;
+    private final String formatName;
     private long estimatedBytes;
 
     // ---- Classification ----
@@ -38,33 +37,35 @@ public final class VramAllocationRecord {
     private String callerClass;          // simplified caller class name
 
     /**
-     * Creates a new allocation record for a texture.
+     * Creates a new allocation record.
      *
-     * @param glObjectId      OpenGL texture/buffer object ID
-     * @param width           texture width in pixels
-     * @param height          texture height in pixels
-     * @param depth           texture depth (1 for 2D, &gt;1 for 3D)
-     * @param mipLevels       number of mipmap levels (0 means no mipmaps)
-     * @param glInternalFormat OpenGL internal format constant (e.g. GL_RGBA8)
-     * @param label           optional label from Blaze3D createTexture supplier
-     * @param allocTick       game tick when allocated
-     * @param callerClass     simplified calling class name
+     * @param kind           texture or buffer namespace
+     * @param glObjectId     OpenGL object ID (0 if unknown / non-GL backend)
+     * @param width          texture width in pixels (0 for buffers)
+     * @param height         texture height in pixels (0 for buffers)
+     * @param depth          texture depth/layers (1 for 2D, 6 for cubemaps, 1 for buffers)
+     * @param mipLevels      number of mip levels (1 = no extra mips)
+     * @param bytesPerPixel  bytes per pixel for the format (1 for buffers)
+     * @param formatName     Blaze3D GpuFormat name, or null for buffers
+     * @param label          optional label from Blaze3D createTexture/createBuffer
+     * @param allocTick      game tick when allocated
+     * @param callerClass    simplified calling class name
      */
-    public VramAllocationRecord(int glObjectId, int width, int height, int depth,
-                                 int mipLevels, int glInternalFormat,
+    public VramAllocationRecord(AllocationKind kind, int glObjectId, int width, int height, int depth,
+                                 int mipLevels, float bytesPerPixel, String formatName,
                                  String label, long allocTick, String callerClass) {
+        this.kind = kind;
         this.glObjectId = glObjectId;
         this.width = width;
         this.height = height;
         this.depth = depth;
-        this.mipLevels = Math.max(0, mipLevels);
-        this.glInternalFormat = glInternalFormat;
+        this.mipLevels = Math.max(1, mipLevels);
+        this.formatName = formatName;
         this.label = (label != null && !label.isEmpty()) ? label : null;
 
         // Estimate VRAM usage
-        float bytesPerPixel = TextureFormatBytes.lookup(glInternalFormat);
         float mipFactor = this.mipLevels > 1 ? mipmapTotalFactor(this.mipLevels) : 1.0f;
-        this.estimatedBytes = (long) (width * height * depth * bytesPerPixel * mipFactor);
+        this.estimatedBytes = (long) (width * (long) height * depth * bytesPerPixel * mipFactor);
 
         // Classify
         this.source = SourceTag.fromLabel(label);
@@ -125,12 +126,13 @@ public final class VramAllocationRecord {
 
     // ---- Getters ----
 
+    public AllocationKind getKind() { return kind; }
     public int getGlObjectId() { return glObjectId; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public int getDepth() { return depth; }
     public int getMipLevels() { return mipLevels; }
-    public int getGlInternalFormat() { return glInternalFormat; }
+    public String getFormatName() { return formatName; }
     public long getEstimatedBytes() { return estimatedBytes; }
     public void setEstimatedBytes(long bytes) { this.estimatedBytes = bytes; }
     public AllocationCategory getCategory() { return category; }
@@ -186,8 +188,8 @@ public final class VramAllocationRecord {
 
     @Override
     public String toString() {
-        return String.format("VramAlloc{id=%d, %s/%s, %d×%d, %d MB, %s}",
-                glObjectId, category, source, width, height,
+        return String.format("VramAlloc{%s id=%d, %s/%s, %d×%d, %d MB, %s}",
+                kind, glObjectId, category, source, width, height,
                 estimatedBytes / (1024 * 1024), alive ? "alive" : "freed");
     }
 }
