@@ -90,12 +90,13 @@ Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%
 | Voxy geometry limit | Peak (VBO-based) | Tracked | Untracked | Note |
 |---|---|---|---|---|
 | 512MB (old session) | 8028/8192 MB (97%) | — | — | Voxy node hierarchy thrash |
-| 1024MB | 7576/8192 MB (92%) | 3118 MB | 4458 MB | No thrash; pressure = Voxy + 3×8192² atlases + shader pack |
-| 2048MB | 8028/8192 MB (97%) | 2993 MB | 5035 MB | Extra 1GB geometry pushes the card to the edge |
+| 1024MB, atlas 8192 | 7576/8192 MB (92%) | 3118 MB | 4458 MB | No thrash; pressure = Voxy + 3×8192² atlases + shader pack |
+| 2048MB, atlas 8192 | 8028/8192 MB (97%) | 2993 MB | 5035 MB | Extra 1GB geometry pushes the card to the edge |
+| **1024MB, atlas 4096** | **6723/8192 MB (82%)** | **1895 MB** | **4828 MB** | **Recommended P2 baseline** |
 
-At 1024MB the tracked side is dominated by **three 8192² texture atlases** (`blocks`, `blocks_n`, `blocks_s`, each ~341MB with mips, ~1023MB total) plus Sodium buffer geometry (~750MB). The untracked side is mostly **Voxy raw GL** (geometry buffer ~1GB + model atlas ~0.5GB) and **Iris shader raw GL** (~2.5–2.9GB).
+At 1024MB with atlas 8192 the tracked side is dominated by **three 8192² texture atlases** (`blocks`, `blocks_n`, `blocks_s`, each ~341MB with mips, ~1023MB total) plus Sodium buffer geometry (~750MB). With **atlas 4096** the atlas total drops to ~944MB. The untracked side is mostly **Voxy raw GL** (geometry buffer ~1GB + model atlas ~0.5GB) and **Iris shader raw GL** (~2.5–2.9GB).
 
-> **Recommendation:** keep the Voxy geometry limit at 1024MB. 512MB causes thrash; 2048MB makes an 8GB card worse.
+> **Recommendation:** keep the Voxy geometry limit at 1024MB and use `maxAtlasSize=4096`. 512MB causes thrash; 2048MB makes an 8GB card worse; 1024+4096 is the current best measured combination.
 
 ### VRAM probe reliability
 

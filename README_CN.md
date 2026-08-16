@@ -90,12 +90,13 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它
 | Voxy geometry limit | 峰值（VBO 口径） | 追踪 | 未追踪 | 说明 |
 |---|---|---|---|---|
 | 512MB（旧会话） | 8028/8192 MB (97%) | — | — | Voxy 节点层级抖动 |
-| 1024MB | 7576/8192 MB (92%) | 3118 MB | 4458 MB | 无抖动；压力 = Voxy + 三张 8192² 图集 + 光影包 |
-| 2048MB | 8028/8192 MB (97%) | 2993 MB | 5035 MB | 多 1GB geometry 直接压到边缘 |
+| 1024MB, atlas 8192 | 7576/8192 MB (92%) | 3118 MB | 4458 MB | 无抖动；压力 = Voxy + 三张 8192² 图集 + 光影包 |
+| 2048MB, atlas 8192 | 8028/8192 MB (97%) | 2993 MB | 5035 MB | 多 1GB geometry 直接压到边缘 |
+| **1024MB, atlas 4096** | **6723/8192 MB (82%)** | **1895 MB** | **4828 MB** | **推荐 P2 基线** |
 
-1024 时追踪侧大头是**三张 8192² 图集**（`blocks`、`blocks_n`、`blocks_s`，各约 341MB 含 mip，共约 1023MB）+ Sodium buffer geometry（约 750MB）。未追踪侧大头是 **Voxy raw GL**（geometry ~1GB + model atlas ~0.5GB）和 **Iris 光影 raw GL**（约 2.5–2.9GB）。
+1024 + atlas 8192 时追踪侧大头是**三张 8192² 图集**（`blocks`、`blocks_n`、`blocks_s`，各约 341MB 含 mip，共约 1023MB）+ Sodium buffer geometry（约 750MB）。**atlas 4096 时图集合计降到约 944MB**。未追踪侧大头是 **Voxy raw GL**（geometry ~1GB + model atlas ~0.5GB）和 **Iris 光影 raw GL**（约 2.5–2.9GB）。
 
-> **建议：Voxy geometry limit 保持 1024MB。** 512 会抖动，2048 在 8GB 卡上更糟。
+> **建议：Voxy geometry limit 保持 1024MB，`maxAtlasSize` 用 4096。** 512 会抖动，2048 在 8GB 卡上更糟；1024+4096 是目前实测最佳组合。
 
 ### VRAM 查询口径
 
