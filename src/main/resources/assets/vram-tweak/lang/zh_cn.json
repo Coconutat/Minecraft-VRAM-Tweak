@@ -97,6 +97,8 @@
   "vramtweak.command.benchmark.interrupted": "§c基准测试中断。",
   "vramtweak.command.benchmark.failed": "§c基准测试失败: %s",
   "vramtweak.command.allocreport.disabled": "§c分配追踪器未启用。请在配置中开启「诊断 → 显存分配追踪器」。",
+  "vramtweak.command.governor.on": "§aGovernor 已开启（vram.enabled 已同步为 true）。",
+  "vramtweak.command.governor.off": "§cGovernor 已关闭。",
   "vramtweak.hud.gpu": "§bGPU:",
   "vramtweak.hud.fps": "§bFPS:",
   "vramtweak.hud.frametime": "§bFT:",

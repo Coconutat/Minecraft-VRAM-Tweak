@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
@@ -17,7 +18,12 @@ import test.vram.tweak.allocation.VramAllocTrend;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
+import test.vram.tweak.diagnostic.VerificationLogger;
+import test.vram.tweak.diagnostic.VramModLog;
 import test.vram.tweak.gpu.GPUDetector;
+import test.vram.tweak.gpu.GlVramProbe;
+import test.vram.tweak.vram.VRAMGovernor;
+import test.vram.tweak.vram.VRAMOptimizer;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
@@ -38,6 +44,15 @@ public class VramTweakCommand {
                             IntegerArgumentType.getInteger(ctx, "seconds"))))
                 .executes(ctx -> benchmark(ctx.getSource(), 30)))
             .then(literal("allocreport").executes(ctx -> allocReport(ctx.getSource())))
+            .then(literal("phase")
+                .then(argument("name", StringArgumentType.greedyString())
+                    .executes(ctx -> phase(ctx.getSource(),
+                            StringArgumentType.getString(ctx, "name")))))
+            .then(literal("probe").executes(ctx -> probe(ctx.getSource())))
+            .then(literal("governor")
+                .then(literal("on").executes(ctx -> governorSet(ctx.getSource(), true)))
+                .then(literal("off").executes(ctx -> governorSet(ctx.getSource(), false)))
+                .then(literal("status").executes(ctx -> governorStatus(ctx.getSource()))))
         );
     }
 
@@ -114,6 +129,77 @@ public class VramTweakCommand {
     private static int benchmark(FabricClientCommandSource src, int seconds) {
         src.sendFeedback(Component.translatable("vramtweak.command.benchmark.start", seconds));
         BenchmarkRunner.start(seconds, src);
+        return 1;
+    }
+
+    /** 记录测试阶段标记：mod.log + verify-*.log。 */
+    private static int phase(FabricClientCommandSource src, String name) {
+        VramModLog.info("[Phase] " + name);
+        VerificationLogger.logPhase(name);
+        src.sendFeedback(Component.literal("§b[Phase]§f " + name));
+        return 1;
+    }
+
+    /** 即时 dump VRAM 探测口径（供 T4 与 RMV/ADL 对照）。 */
+    private static int probe(FabricClientCommandSource src) {
+        var probe = GlVramProbe.INSTANCE;
+        long totalKB = probe.totalKB();
+        long freeKB = probe.freeKB();
+        long usedMB = totalKB > 0 && freeKB >= 0 ? Math.max(0, (totalKB - freeKB) / 1024) : -1;
+
+        src.sendFeedback(Component.literal(
+                "§b=== VRAM Probe ===§f  §7" + GPUDetector.getRenderer() + " (" + GPUDetector.getVendor() + ")"));
+        src.sendFeedback(Component.literal(
+                "  §7source: §f" + probe.source()
+                + "  §7total: §f" + (totalKB > 0 ? totalKB / 1024 + "MB" : "n/a")
+                + "  §7free: §f" + (freeKB >= 0 ? freeKB / 1024 + "MB" : "n/a")
+                + "  §7used: §f" + (usedMB >= 0 ? usedMB + "MB" : "n/a")));
+        long[] pools = probe.lastAtiPoolFreeKB();
+        if (pools != null) {
+            src.sendFeedback(Component.literal(
+                    "  §7ATI pools (info): VBO=" + pools[0] / 1024 + "MB"
+                    + "  texture=" + pools[1] / 1024 + "MB"
+                    + "  renderbuffer=" + pools[2] / 1024 + "MB"));
+        }
+        if (test.vram.tweak.gpu.VoxyMemoryProbe.isAvailable()) {
+            src.sendFeedback(Component.literal(
+                    "  §7Voxy: buffers=" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferCount()
+                    + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getBufferBytes() / (1024 * 1024) + "MB)"
+                    + " textures=" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureCount()
+                    + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureBytes() / (1024 * 1024) + "MB)"));
+        }
+        return 1;
+    }
+
+    /** 快速开关 Governor（并保证 vram.enabled 同步为 true，否则 Governor 不启动）。 */
+    private static int governorSet(FabricClientCommandSource src, boolean on) {
+        var cfg = VRAMConfig.getInstance();
+        cfg.governor.enabled = on;
+        if (on) {
+            cfg.vram.enabled = true;
+        }
+        VRAMConfig.save();
+        VRAMOptimizer.reload();
+        VRAMGovernor.reload();
+        src.sendFeedback(Component.translatable(on
+                ? "vramtweak.command.governor.on" : "vramtweak.command.governor.off"));
+        return 1;
+    }
+
+    private static int governorStatus(FabricClientCommandSource src) {
+        var g = VRAMConfig.getInstance().governor;
+        var v = VRAMConfig.getInstance().vram;
+        src.sendFeedback(Component.literal(
+                "§b=== Governor Status ===§f"));
+        src.sendFeedback(Component.literal(
+                "  §7config: enabled=" + g.enabled + " vram.enabled=" + v.enabled
+                + " target=" + v.budgetWarningPercent + "%"
+                + " hyst=" + g.hysteresis + "% minDist=" + g.minDistance
+                + " cooldown=" + g.cooldownTicks + "t"));
+        src.sendFeedback(Component.literal(
+                "  §7runtime: enabled=" + VRAMGovernor.isEnabled()
+                + " capping=" + VRAMGovernor.isCapping()
+                + " cap=" + VRAMGovernor.getCurrentCap()));
         return 1;
     }
 

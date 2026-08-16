@@ -75,7 +75,10 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它
 /vramtweak dump        — 环形缓冲区 CSV 导出
 /vramtweak hud         — 开关 HUD
 /vramtweak benchmark   — VRAM 压力测试（ON vs OFF）
-/vramtweak allocreport — 分配分解（按类别 + Top-10 最大纹理）
+/vramtweak allocreport — 分配分解（按类别 + Top-10 最大纹理 + GL−追踪差额趋势）
+/vramtweak phase <name> — 在 mod.log 与 verify 日志中标记测试阶段
+/vramtweak probe       — 即时输出 VRAM 探测详情（ATI 池、Voxy）
+/vramtweak governor on|off|status — 快速开关/查询 Governor
 ```
 
 ---

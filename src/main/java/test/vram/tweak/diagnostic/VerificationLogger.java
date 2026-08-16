@@ -134,6 +134,13 @@ public class VerificationLogger {
                 n, direction, oldDist, newDist, vramUsedMB, vramTotalMB));
     }
 
+    // ---- Phase marker (P2 test tooling) ----
+
+    public static void logPhase(String name) {
+        if (!enabled()) return;
+        logBoth("Phase: " + name);
+    }
+
     // ---- VRAM budget ----
 
     public static void logBudgetWarning(long usedMB, long totalMB, int percent) {

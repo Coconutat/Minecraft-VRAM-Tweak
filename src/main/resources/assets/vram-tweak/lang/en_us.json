@@ -97,6 +97,8 @@
   "vramtweak.command.benchmark.interrupted": "§cBenchmark interrupted.",
   "vramtweak.command.benchmark.failed": "§cBenchmark failed: %s",
   "vramtweak.command.allocreport.disabled": "§cAllocTracker is not enabled. Turn on 'Diagnostics → VRAM AllocTracker' in config.",
+  "vramtweak.command.governor.on": "§aGovernor ON (vram.enabled set to true).",
+  "vramtweak.command.governor.off": "§cGovernor OFF.",
   "vramtweak.hud.gpu": "§bGPU:",
   "vramtweak.hud.fps": "§bFPS:",
   "vramtweak.hud.frametime": "§bFT:",

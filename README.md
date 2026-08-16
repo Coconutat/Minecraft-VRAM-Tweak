@@ -75,7 +75,10 @@ Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%
 /vramtweak dump        — Ring-buffer CSV to disk
 /vramtweak hud         — Toggle HUD
 /vramtweak benchmark   — VRAM stress test (ON vs OFF)
-/vramtweak allocreport — Allocation breakdown by category + top-10 largest
+/vramtweak allocreport — Allocation breakdown by category + top-10 largest + GL−tracked trend
+/vramtweak phase <name> — Mark a test phase in mod.log + verify log
+/vramtweak probe       — Dump live VRAM probe details (ATI pools, Voxy)
+/vramtweak governor on|off|status — Toggle/query the VRAM governor
 ```
 
 ---
