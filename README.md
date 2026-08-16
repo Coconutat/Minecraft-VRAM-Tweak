@@ -17,7 +17,7 @@
 
 ## Overview
 
-VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via Mixin injection. It caps oversized texture atlases, downscales depth buffers, and dynamically adjusts render distance under VRAM pressure — **without modifying Sodium, Iris, or any third-party mod**. Its core is the built-in VRAM forensics tool (AllocTracker), which classifies every tracked GPU allocation by category and source.
+VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via Mixin injection. It caps oversized texture atlases, downscales depth buffers, dynamically adjusts render distance under VRAM pressure, and clamps unsafe Voxy geometry limits — **without modifying Sodium, Iris, or any third-party mod code**. Its core is the built-in VRAM forensics tool (AllocTracker), which classifies every tracked GPU allocation by category and source.
 
 ### Active Features
 
@@ -28,6 +28,7 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via 
 | **Atlas size cap** | Clamp texture atlas W/H ≤ `maxAtlasSize` | ⚠️ Verified, some shaders may shade a block face dark |
 | **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ✅ Stable |
 | **Budget tracking** | Periodic VRAM polling + configurable alert | ✅ Stable |
+| **Voxy geometry clamp** | Prevent unsafe low Voxy geometry limits (min 1024MB) | ✅ Verified (1024 safe; 512 thrash; 2048 worse on 8GB) |
 
 > ⚠️ **The render distance reduction is temporary and dynamic.** Your settings menu still shows the original value you configured. To see the actual effective render distance, check the HUD overlay — it displays the governor's current cap in real time. When VRAM recovers, the cap lifts automatically.
 
@@ -43,7 +44,7 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via 
 
 ## AllocTracker — VRAM Forensics
 
-Intercepts every `glTexImage2D` / `glDeleteTextures` call and classifies each allocation by category and source. Periodically writes aggregated snapshots to `logs/vram-tweak/mod.log`.
+Intercepts GPU resource creation/release at the Blaze3D abstraction layer (`GpuDevice.createTexture`, `GlTexture.destroyImmediately`, `GlBuffer`/`BufferStorage` lifecycle) and classifies each allocation by category and source. Periodically writes aggregated snapshots to `logs/vram-tweak/mod.log`.
 
 **Example output:**
 ```
@@ -82,19 +83,23 @@ Real-time overlay, each metric independently toggleable: FPS (smooth/avg/1%/0.1%
 ## Performance
 
 **HW:** AMD R5 5600 + 32GB + RX 6650 XT 8GB  
-**SW:** MC 26.2 + Sodium 0.9.0 + Iris 1.11 + ScalableLux + 80+ mods
+**SW:** MC 26.2 + Sodium 0.9.1 + Iris 1.11.2 + ComplementaryReimagined_r5.8.1 + EuphoriaPatches + Voxy 0.2.18-beta + 80+ mods
 
-### VRAM Breakdown (AllocTracker, maxAtlasSize=2048)
+### Real-world VRAM forensics (2026-08-15, AllocTracker)
 
-| Source | Size | % |
-|--------|------|---|
-| Texture Atlases (blocks, items, misc) | ~2772 MB | 55% |
-| Iris Render Targets (G-buffer) | ~1571 MB | 32% |
-| Other (entities, GUI, font) | ~180 MB | 4% |
-| Untracked (driver, SSBO) | ~448 MB | 9% |
-| **Total** | **~4971 MB** | 60% of 8GB |
+| Voxy geometry limit | Peak (VBO-based) | Tracked | Untracked | Note |
+|---|---|---|---|---|
+| 512MB (old session) | 8028/8192 MB (97%) | — | — | Voxy node hierarchy thrash |
+| 1024MB | 7576/8192 MB (92%) | 3118 MB | 4458 MB | No thrash; pressure = Voxy + 3×8192² atlases + shader pack |
+| 2048MB | 8028/8192 MB (97%) | 2993 MB | 5035 MB | Extra 1GB geometry pushes the card to the edge |
 
-> The atlas cap reduces individual atlases from 16384px to the configured limit. Iris G-buffers are the second-largest consumer and are not currently intercepted.
+At 1024MB the tracked side is dominated by **three 8192² texture atlases** (`blocks`, `blocks_n`, `blocks_s`, each ~341MB with mips, ~1023MB total) plus Sodium buffer geometry (~750MB). The untracked side is mostly **Voxy raw GL** (geometry buffer ~1GB + model atlas ~0.5GB) and **Iris shader raw GL** (~2.5–2.9GB).
+
+> **Recommendation:** keep the Voxy geometry limit at 1024MB. 512MB causes thrash; 2048MB makes an 8GB card worse.
+
+### VRAM probe reliability
+
+On the tested AMD Windows driver, `GL_ATI_meminfo` reports the **same value for all three pool tokens at startup**, and the texture/renderbuffer tokens can return garbage at runtime. **Only `GL_VBO_FREE_MEMORY_ATI` (0x87FB) is used for calculations**; the other two are logged as forensic information. Do not sum the three pools on this driver.
 
 ---
 
@@ -163,11 +168,12 @@ Requires JDK 25+.
 
 ```
 Mixin Layer
-├── MixinGpuDevice_VRAMOptimize      → createTexture() atlas cap / format downscale
+├── MixinGpuDevice_VRAMOptimize      → createTexture() atlas cap (W/H) / format downscale / texture tracking
 ├── MixinGameRenderer_Metrics        → per-frame stats + alloc snapshots + governor trigger
-├── MixinGlStateManager_AllocTracker → glTexImage2D / glDeleteTextures tracking
+├── MixinGlBuffer_Init_BufferTracker / MixinBufferStorageImmutable_BufferTracker → buffer alloc tracking (Blaze3D)
+├── MixinGlBufferDirect_Close        → buffer free tracking (Blaze3D)
+├── MixinGlTexture_Destroy           → texture free tracking (Blaze3D)
 ├── MixinGlFramebuffer_AllocTracker  → framebuffer attachment classification
-├── MixinGlBuffer_Init_BufferTracker / MixinBufferStorageImmutable_BufferTracker → buffer tracking (Blaze3D layer)
 ├── MixinOptions_RenderDistance      → governor: ClientChunkCache cap
 ├── MixinOptions_EffectiveRenderDistance → governor: Options read-side cap
 ├── MixinGui_Hud / MixinMinecraft_Hud → HUD overlay
@@ -175,8 +181,9 @@ Mixin Layer
 
 Core (src/main)
 ├── allocation/              → AllocTracker: categories, tracking, logging
+├── gpu/                     → VramProbe / GlVramProbe / GPUDetector / AmdVramLookup / Voxy probes
 ├── VRAMOptimizer / VRAMGovernor / MetricsEngine / VramFrameCounter
-├── VerificationLogger / VramModLog / GPUDetector / VRAMConfig
+├── VerificationLogger / VramModLog / VRAMConfig
 
 Client (src/client)
 ├── VramTweakHud / VramTweakCommand / ClothConfigFactory / ModMenuIntegration

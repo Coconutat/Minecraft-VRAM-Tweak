@@ -136,11 +136,11 @@ public class MixinGpuDevice_VRAMOptimize {
         at = @At("HEAD"), ordinal = 2, argsOnly = true)
     private int capHeight(int h) {
         try {
-            if (Boolean.TRUE.equals(IS_ATLAS.get()) && VRAMOptimizer.isEnabled()) {
+            if (Boolean.TRUE.equals(IS_ATLAS.get())) {
                 String name = ATLAS_NAME.get();
                 Integer sw = STORED_WIDTH.get();
                 String fmt = CURRENT_FORMAT.get();
-                // Log every atlas creation (only ~3-5 per session)
+                // Log every atlas creation (only ~3-5 per session), independent of optimizer state
                 if (name != null && sw != null && fmt != null) {
                     VRAMOptimizer.logAtlasTracked(name, sw, h, fmt);
                 }

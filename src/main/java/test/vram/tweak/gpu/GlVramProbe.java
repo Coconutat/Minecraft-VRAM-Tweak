@@ -3,6 +3,7 @@ package test.vram.tweak.gpu;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.lwjgl.opengl.ATIMeminfo;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 
@@ -10,13 +11,16 @@ import org.lwjgl.opengl.GL30;
  * OpenGL 后端的 VRAM 查询实现。
  *
  * <p>AMD 口径统一：总量优先用模型查表（{@link AmdVramLookup}），其次 NVX，最后
- * 启动期 ATI 空闲值四舍五入；空闲值在 ATI 原始读数之上做低水位 + EMA 平滑，
- * 避免"可回收内存"造成的空闲虚高。</p>
+ * 启动期 ATI 空闲值四舍五入；空闲值取 ATI_meminfo 的 VBO 池读数（实测该驱动上
+ * VBO token 即总空闲），在其上做低水位 + EMA 平滑，避免"可回收内存"造成的
+ * 空闲虚高。texture/renderbuffer token 仅作取证记录，不参与计算。</p>
  */
 public final class GlVramProbe implements VramProbe {
     public static final GlVramProbe INSTANCE = new GlVramProbe();
 
-    private static final int GL_TEXTURE_FREE_MEMORY_ATI = 0x87FB;
+    private static final int GL_VBO_FREE_MEMORY_ATI = ATIMeminfo.GL_VBO_FREE_MEMORY_ATI;
+    private static final int GL_TEXTURE_FREE_MEMORY_ATI = ATIMeminfo.GL_TEXTURE_FREE_MEMORY_ATI;
+    private static final int GL_RENDERBUFFER_FREE_MEMORY_ATI = ATIMeminfo.GL_RENDERBUFFER_FREE_MEMORY_ATI;
     private static final int GL_GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX = 0x9047;
     private static final int GL_GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX = 0x9049;
 
@@ -38,6 +42,11 @@ public final class GlVramProbe implements VramProbe {
     private double amdSmoothedUsedKB;
     private long amdPrevFreeKB;
     private boolean amdCalibrated;
+
+    // 最近一次 ATI 三池空闲读数（KB），用于取证拆分
+    private volatile long lastAtiVboFreeKB = -1;
+    private volatile long lastAtiTextureFreeKB = -1;
+    private volatile long lastAtiRenderbufferFreeKB = -1;
 
     private GlVramProbe() {}
 
@@ -74,7 +83,7 @@ public final class GlVramProbe implements VramProbe {
     @Override
     public String source() {
         return switch (GPUDetector.getGPU()) {
-            case AMD -> amdTotalKB > 0 ? "AMD model lookup" : "GL_ATI_meminfo";
+            case AMD -> amdTotalKB > 0 ? "AMD model total + ATI VBO free" : "GL_ATI_meminfo (VBO pool)";
             case NVIDIA -> "GL_NVX_gpu_memory_info";
             case INTEL -> hasGLExt("GL_NVX_gpu_memory_info") ? "GL_NVX_gpu_memory_info" : "GL_ATI_meminfo";
             default -> "none";
@@ -123,10 +132,35 @@ public final class GlVramProbe implements VramProbe {
         return (long) (totalKB - smoothed);
     }
 
+    /**
+     * ATI_meminfo 读数。实测（RX 6650 XT / Windows）：启动期三个 token 都返回同一个
+     * 总空闲值；运行期 texture/renderbuffer token 可能返回无意义值（单位/符号都不稳）。
+     * 因此计算口径只用 GL_VBO_FREE_MEMORY_ATI（0x87FB），其余两个仅作取证记录。
+     */
     private long queryRawFreeKB_AMD() {
-        int[] vals = new int[4];
-        GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, vals);
-        return vals[0] & 0xFFFFFFFFL;
+        int[] vbo = new int[4];
+        int[] tex = new int[4];
+        int[] rbo = new int[4];
+        GL11.glGetIntegerv(GL_VBO_FREE_MEMORY_ATI, vbo);
+        GL11.glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, tex);
+        GL11.glGetIntegerv(GL_RENDERBUFFER_FREE_MEMORY_ATI, rbo);
+
+        long vboFree = vbo[0] & 0xFFFFFFFFL;
+        lastAtiVboFreeKB = vboFree;
+        lastAtiTextureFreeKB = tex[0] & 0xFFFFFFFFL;
+        lastAtiRenderbufferFreeKB = rbo[0] & 0xFFFFFFFFL;
+
+        return vboFree > 0 && vboFree <= MAX_SANE_KB ? vboFree : -1;
+    }
+
+    /** 最近一次 ATI 三池读数（KB）：[VBO, texture, renderbuffer]；非 AMD 或未查询时返回 null。 */
+    public long[] lastAtiPoolFreeKB() {
+        if (GPUDetector.getGPU() != GPUType.AMD) return null;
+        long vbo = lastAtiVboFreeKB;
+        long tex = lastAtiTextureFreeKB;
+        long rbo = lastAtiRenderbufferFreeKB;
+        if (vbo < 0 && tex < 0 && rbo < 0) return null;
+        return new long[] { vbo, tex, rbo };
     }
 
     private long queryTotalKB_AMD() {

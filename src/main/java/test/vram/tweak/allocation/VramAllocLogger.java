@@ -3,6 +3,7 @@ package test.vram.tweak.allocation;
 import java.util.Map;
 
 import test.vram.tweak.diagnostic.VramModLog;
+import test.vram.tweak.gpu.GlVramProbe;
 
 /**
  * Three-level logging for the allocation tracker.
@@ -98,6 +99,11 @@ public final class VramAllocLogger {
         sb.append(String.format("  GL 已用: %d/%d MB (%d%%)\n",
                 glReportedUsedMB, glReportedTotalMB,
                 glReportedTotalMB > 0 ? (glReportedUsedMB * 100 / glReportedTotalMB) : 0));
+        long[] pools = GlVramProbe.INSTANCE.lastAtiPoolFreeKB();
+        if (pools != null && pools[0] >= 0) {
+            sb.append(String.format("  ATI 池读数(信息) VBO=%dMB 纹理=%dMB RBO=%dMB\n",
+                    pools[0] / 1024, pools[1] / 1024, pools[2] / 1024));
+        }
         sb.append(String.format("  追踪已用: %d MB  |  未追踪: %d MB\n", trackedMB, untrackedMB));
         sb.append(String.format("  总分配: %d 笔  |  活跃: %d 笔  |  已释放: %d 笔\n",
                 summary.totalAllocations(), summary.aliveAllocations(),

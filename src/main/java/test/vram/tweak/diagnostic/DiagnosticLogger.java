@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.lwjgl.opengl.ATIMeminfo;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
@@ -83,10 +84,18 @@ public class DiagnosticLogger {
         try {
             switch (GPUDetector.getGPU()) {
                 case AMD -> {
-                    int[] vals = new int[4];
-                    GL11.glGetIntegerv(0x87FB, vals);
-                    long freeKB = vals[0] & 0xFFFFFFFFL;
-                    sb.append("  VRAM free (ATI_meminfo): ").append(freeKB).append(" KB\n");
+                    int[] vbo = new int[4];
+                    int[] tex = new int[4];
+                    int[] rbo = new int[4];
+                    GL11.glGetIntegerv(ATIMeminfo.GL_VBO_FREE_MEMORY_ATI, vbo);
+                    GL11.glGetIntegerv(ATIMeminfo.GL_TEXTURE_FREE_MEMORY_ATI, tex);
+                    GL11.glGetIntegerv(ATIMeminfo.GL_RENDERBUFFER_FREE_MEMORY_ATI, rbo);
+                    long vboFree = vbo[0] & 0xFFFFFFFFL;
+                    long texFree = tex[0] & 0xFFFFFFFFL;
+                    long rboFree = rbo[0] & 0xFFFFFFFFL;
+                    sb.append("  VRAM free (ATI_meminfo, VBO pool): ").append(vboFree).append(" KB\n");
+                    sb.append("    Texture pool free (info only): ").append(texFree).append(" KB\n");
+                    sb.append("    Renderbuffer pool free (info only): ").append(rboFree).append(" KB\n");
                     // Try NVX total if available
                     if (hasExtension("GL_NVX_gpu_memory_info")) {
                         int[] totalVal = new int[1];
