@@ -26,7 +26,7 @@ VRAM Tweak intercepts GPU texture creation at the Blaze3D abstraction layer via 
 | **AllocTracker** | Track GPU alloc/free, categorize by type & source | ✅ Core |
 | **Depth downscale** | D32_FLOAT → D16_UNORM | ✅ Verified |
 | **Atlas size cap** | Clamp texture atlas W/H ≤ `maxAtlasSize` | ⚠️ Verified, some shaders may shade a block face dark |
-| **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ✅ Stable |
+| **VRAM Governor** | Auto-lower render distance under VRAM pressure, active enforcement | ⚠️ P2 校准中（T2：收益有限，策略待调） |
 | **Budget tracking** | Periodic VRAM polling + configurable alert | ✅ Stable |
 | **Voxy geometry clamp** | Prevent unsafe low Voxy geometry limits (min 1024MB) | ✅ Verified (1024 safe; 512 thrash; 2048 worse on 8GB) |
 
@@ -101,6 +101,18 @@ At 1024MB with atlas 8192 the tracked side is dominated by **three 8192² textur
 
 > **Recommendation:** keep the Voxy geometry limit at 1024MB and use `maxAtlasSize=4096`. 512MB causes thrash; 2048MB makes an 8GB card worse; 1024+4096 is the current best measured combination.
 
+> **VRAM Governor status (P2):** enabling the governor lowered the peak from ~83% to ~82% (≈90MB) in the first T2 run, but the log showed a slow 12↔6 sawtooth. The strategy is being tuned (restore stability window). Full evidence: `Docs/p2-plan.md`.
+
+### 2026-08-16 shadow resolution test (8GB card, test shader pack)
+
+| `shadowMapResolution` | Peak GL (run 1) | Untracked (run 1) |
+|---|---|---|
+| 1024 | 6813/8192 MB (83%) | ~4830 MB |
+| 2048 | 6943/8192 MB (84%) | ~4909 MB |
+| 4096 | 7387/8192 MB (90%) | ~5180 MB |
+
+A second run the same day (12:42–12:47) measured ~6866 / 7033 / 7544 MB (83 / 85 / 92%) for the same three steps — the ~1–2% difference is scene/loading variance. Different shader packs implement shadows differently, so these numbers are not directly portable; for this test pack on 8GB, `shadowMapResolution=1024` is recommended.
+
 ### VRAM probe reliability
 
 On the tested AMD Windows driver, `GL_ATI_meminfo` reports the **same value for all three pool tokens at startup**, and the texture/renderbuffer tokens can return garbage at runtime. **Only `GL_VBO_FREE_MEMORY_ATI` (0x87FB) is used for calculations**; the other two are logged as forensic information. Do not sum the three pools on this driver.
@@ -151,7 +163,7 @@ On the tested AMD Windows driver, `GL_ATI_meminfo` reports the **same value for 
     "logDirectory": "logs/vram-tweak"
   },
   "hud": { "enabled": true, "offsetX": 4, "offsetY": 4 },
-  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 }
+  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100, "restoreStableMs": 30000, "restoreCeiling": 0 }
 }
 ```
 

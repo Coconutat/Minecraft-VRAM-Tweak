@@ -26,7 +26,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它
 | **AllocTracker** | 追踪 GPU 分配/释放，按类型和来源分类 | ✅ 核心 |
 | **深度缓冲降精度** | D32_FLOAT → D16_UNORM | ✅ 已验证 |
 | **图集尺寸上限** | 限制纹理图集宽高 ≤ `maxAtlasSize` | ⚠️ 已验证；部分光影下方块某一面可能变黑 |
-| **VRAM 调速器** | 显存紧张时自动降低渲染距离，主动执行 | ✅ 稳定 |
+| **VRAM 调速器** | 显存紧张时自动降低渲染距离，主动执行 | ⚠️ P2 校准中（T2：收益有限，策略待调） |
 | **预算追踪** | 周期轮询 VRAM 用量 + 可配置告警 | ✅ 稳定 |
 | **Voxy 几何缓冲钳制** | 防止 Voxy geometry buffer 低于安全下限（最小 1024MB） | ✅ 已验证（512 抖动；1024 安全；8GB 下 2048 更糟） |
 
@@ -101,6 +101,18 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它
 
 > **建议：Voxy geometry limit 保持 1024MB，`maxAtlasSize` 用 4096。** 512 会抖动，2048 在 8GB 卡上更糟；1024+4096 是目前实测最佳组合。
 
+> **VRAM 调速器现状（P2）：** 第一轮 T2 中开启后峰值从 ~83% 降到 ~82%（约省 90MB），但日志出现 12↔6 慢速锯齿；策略正在调优（恢复稳定窗口）。完整证据见 `Docs/p2-plan.md`。
+
+### 2026-08-16 光影阴影分辨率实测（8GB 卡，测试用光影包）
+
+| `shadowMapResolution` | 峰值 GL（第一轮） | 未追踪（第一轮） |
+|---|---|---|
+| 1024 | 6813/8192 MB (83%) | ~4830 MB |
+| 2048 | 6943/8192 MB (84%) | ~4909 MB |
+| 4096 | 7387/8192 MB (90%) | ~5180 MB |
+
+同日二次复测（12:42–12:47）同三档约 6866 / 7033 / 7544 MB（83 / 85 / 92%），差 1–2% 属于场景/加载波动。不同光影包的阴影实现不同，数字不可直接套用；该测试包在 8GB 卡上推荐 `shadowMapResolution=1024`。
+
 ### VRAM 查询口径
 
 实测 AMD Windows 驱动下，`GL_ATI_meminfo` 三个池 token 启动期返回同一个值，运行期 texture/renderbuffer 可能返回垃圾值。**计算只用 `GL_VBO_FREE_MEMORY_ATI`（0x87FB）**，另外两个池只作取证记录；这张卡上**不能三池求和**。
@@ -151,7 +163,7 @@ VRAM Tweak 通过 Mixin 注入在 Blaze3D 抽象层拦截 GPU 纹理创建。它
     "logDirectory": "logs/vram-tweak"
   },
   "hud": { "enabled": true, "offsetX": 4, "offsetY": 4 },
-  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100 }
+  "governor": { "enabled": false, "hysteresis": 10, "minDistance": 4, "cooldownTicks": 100, "restoreStableMs": 30000, "restoreCeiling": 0 }
 }
 ```
 
