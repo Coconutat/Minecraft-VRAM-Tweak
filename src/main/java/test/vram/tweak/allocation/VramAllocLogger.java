@@ -118,6 +118,7 @@ public final class VramAllocLogger {
         appendSortedMap(sb, summary.bySource(), summary.aliveEstimatedBytes());
 
         VramModLog.info(sb.toString());
+        VramAllocTrend.record(glReportedUsedMB, trackedMB, untrackedMB);
     }
 
     private static void appendSortedMap(StringBuilder sb,

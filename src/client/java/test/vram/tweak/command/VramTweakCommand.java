@@ -1,5 +1,8 @@
 package test.vram.tweak.command;
 
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Map;
 
 import com.mojang.brigadier.CommandDispatcher;
@@ -10,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import test.vram.tweak.VRAMTweak;
 import test.vram.tweak.allocation.AllocationCategory;
 import test.vram.tweak.allocation.VramAllocSummary;
+import test.vram.tweak.allocation.VramAllocTrend;
 import test.vram.tweak.allocation.VramAllocationTracker;
 import test.vram.tweak.config.VRAMConfig;
 import test.vram.tweak.diagnostic.MetricsEngine;
@@ -136,6 +140,19 @@ public class VramTweakCommand {
                     + " textures=" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureCount()
                     + " (" + test.vram.tweak.gpu.VoxyMemoryProbe.getTextureBytes() / (1024 * 1024) + "MB)"));
         }
+
+        var trend = VramAllocTrend.snapshot();
+        if (!trend.isEmpty()) {
+            src.sendFeedback(Component.literal("§6── GL − Tracked Trend (last " + trend.size() + ") ──"));
+            for (var e : trend) {
+                String time = LocalTime.from(Instant.ofEpochMilli(e.timeMs())
+                        .atZone(ZoneId.systemDefault())).withNano(0).toString();
+                src.sendFeedback(Component.literal(
+                        "  §7" + time + " §fGL=" + e.glUsedMB() + "MB tracked=" + e.trackedMB()
+                                + "MB untracked=" + e.untrackedMB() + "MB"));
+            }
+        }
+
         src.sendFeedback(Component.literal(
                 "§7Allocs: " + summary.totalAllocations() + " total, " + summary.aliveAllocations() + " alive"));
 
